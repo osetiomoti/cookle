@@ -1,0 +1,19 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+/**
+ * GET /api/auth/login
+ * Cognito Hosted UI ログインページへリダイレクト
+ */
+export async function GET(request: NextRequest) {
+  const domain = process.env.COGNITO_DOMAIN;
+  const clientId = process.env.COGNITO_CLIENT_ID;
+  const redirectUri = `${new URL(request.url).origin}/api/auth/callback`;
+
+  if (!domain || !clientId) {
+    return NextResponse.json({ error: 'Cognito configuration missing' }, { status: 500 });
+  }
+
+  const loginUrl = `https://${domain}/login?client_id=${clientId}&response_type=code&scope=email+openid+profile&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  return NextResponse.redirect(loginUrl);
+}
+

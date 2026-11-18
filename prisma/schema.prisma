@@ -1,0 +1,428 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =============================================
+// User & Auth
+// =============================================
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  cognitoSub  String   @unique @map("cognito_sub") @db.VarChar(255)
+  name        String   @db.VarChar(50)
+  email       String   @db.VarChar(255)
+  avatarKey   String?  @map("avatar_key")       // S3キー: users/{userId}/avatar/{uuid}.webp
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  groupMembers      GroupMember[]
+  groupsCreated     Group[]           @relation("GroupCreator")
+  recipes           Recipe[]
+  cookingRecords    CookingRecord[]
+  favorites         Favorite[]
+  favoriteFolders   FavoriteFolder[]
+  mealPlanItems     MealPlanItem[]
+  shoppingListItems ShoppingListItem[]
+  friendshipsAsUser   Friendship[]    @relation("FriendshipsAsUser")
+  friendshipsAsFriend Friendship[]    @relation("FriendshipsAsFriend")
+  pushSubscriptions   PushSubscription[]
+
+  @@map("users")
+}
+
+// =============================================
+// Group & Members
+// =============================================
+
+model Group {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(100)
+  description String?
+  imageKey    String?  @map("image_key")         // S3キー: groups/{groupId}/icon/{uuid}.webp
+  inviteCode  String   @unique @map("invite_code") @db.VarChar(50)
+  createdBy   String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  creator           User              @relation("GroupCreator", fields: [createdBy], references: [id])
+  members           GroupMember[]
+  recipes           Recipe[]
+  cookingRecords    CookingRecord[]
+  categories        Category[]
+  tags              Tag[]
+  mealPlans         MealPlan[]
+  shoppingLists     ShoppingList[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String          @id @default(uuid()) @db.Uuid
+  groupId  String          @map("group_id") @db.Uuid
+  userId   String          @map("user_id") @db.Uuid
+  role     GroupMemberRole @default(MEMBER)
+  joinedAt DateTime        @default(now()) @map("joined_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+enum GroupMemberRole {
+  ADMIN  @map("admin")
+  MEMBER @map("member")
+
+  @@map("group_member_role")
+}
+
+// =============================================
+// Friends
+// =============================================
+
+model Friendship {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  friendId  String           @map("friend_id") @db.Uuid
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  user   User @relation("FriendshipsAsUser",   fields: [userId],   references: [id], onDelete: Cascade)
+  friend User @relation("FriendshipsAsFriend", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([friendId])
+  @@map("friendships")
+}
+
+enum FriendshipStatus {
+  PENDING  @map("pending")
+  ACCEPTED @map("accepted")
+  REJECTED @map("rejected")
+
+  @@map("friendship_status")
+}
+
+// =============================================
+// Category & Tag
+// =============================================
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  name      String   @db.VarChar(50)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  recipes Recipe[]
+
+  @@unique([groupId, name])
+  @@map("categories")
+}
+
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  name      String   @db.VarChar(50)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  recipeTags RecipeTag[]
+
+  @@unique([groupId, name])
+  @@map("tags")
+}
+
+// =============================================
+// Recipe
+// =============================================
+
+model Recipe {
+  id           String       @id @default(uuid()) @db.Uuid
+  groupId      String       @map("group_id") @db.Uuid
+  createdBy    String       @map("created_by") @db.Uuid
+  title        String       @db.VarChar(100)
+  description  String?
+  mainImageKey String?      @map("main_image_key") // S3キー: recipes/{groupId}/{recipeId}/{uuid}.webp
+  cookTimeMin  Int?         @map("cook_time_min")  // 調理時間（分）
+  servings     Int?                                // 何人分
+  difficulty   Difficulty?
+  categoryId   String?      @map("category_id") @db.Uuid
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  // Relations
+  group          Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator        User               @relation(fields: [createdBy], references: [id])
+  category       Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  ingredients    RecipeIngredient[]
+  steps          RecipeStep[]
+  tags           RecipeTag[]
+  favorites      Favorite[]
+  cookingRecords CookingRecord[]
+  mealPlanItems  MealPlanItem[]
+  // ともだち共有
+  friendShares   RecipeFriendShare[]
+
+  @@index([groupId, createdAt(sort: Desc)])
+  @@index([groupId, categoryId])
+  @@map("recipes")
+}
+
+enum Difficulty {
+  EASY   @map("easy")
+  NORMAL @map("normal")
+  HARD   @map("hard")
+
+  @@map("difficulty")
+}
+
+model RecipeIngredient {
+  id        String   @id @default(uuid()) @db.Uuid
+  recipeId  String   @map("recipe_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  amount    String?  @db.VarChar(50) // 分量（例: "200"）
+  unit      String?  @db.VarChar(20) // 単位（例: "g", "ml", "個"）
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+  @@map("recipe_ingredients")
+}
+
+model RecipeStep {
+  id          String   @id @default(uuid()) @db.Uuid
+  recipeId    String   @map("recipe_id") @db.Uuid
+  stepNumber  Int      @map("step_number")
+  description String
+  imageKey    String?  @map("image_key") // S3キー: recipes/{groupId}/{recipeId}/steps/{n}_{uuid}.webp
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId, stepNumber])
+  @@map("recipe_steps")
+}
+
+model RecipeTag {
+  recipeId String @map("recipe_id") @db.Uuid
+  tagId    String @map("tag_id") @db.Uuid
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId],    references: [id], onDelete: Cascade)
+
+  @@id([recipeId, tagId])
+  @@map("recipe_tags")
+}
+
+// ともだちへのレシピ共有（グループ外共有）
+model RecipeFriendShare {
+  id         String   @id @default(uuid()) @db.Uuid
+  recipeId   String   @map("recipe_id") @db.Uuid
+  sharedBy   String   @map("shared_by") @db.Uuid    // 共有した人
+  sharedWith String   @map("shared_with") @db.Uuid  // 共有された人
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, sharedWith])
+  @@index([sharedWith])
+  @@map("recipe_friend_shares")
+}
+
+// =============================================
+// Favorite
+// =============================================
+
+model FavoriteFolder {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(50)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites Favorite[]
+
+  @@unique([userId, name])
+  @@map("favorite_folders")
+}
+
+model Favorite {
+  id       String   @id @default(uuid()) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  recipeId String   @map("recipe_id") @db.Uuid
+  folderId String?  @map("folder_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User            @relation(fields: [userId],   references: [id], onDelete: Cascade)
+  recipe Recipe          @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  folder FavoriteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, recipeId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+// =============================================
+// Cooking Record（料理記録）
+// =============================================
+
+model CookingRecord {
+  id         String    @id @default(uuid()) @db.Uuid
+  groupId    String    @map("group_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  recipeId   String?   @map("recipe_id") @db.Uuid   // Nullable: 自由な料理記録対応
+  title      String    @db.VarChar(100)              // レシピなし時はタイトル自由入力
+  cookedAt   DateTime  @map("cooked_at") @db.Date
+  memo       String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  group  Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user   User               @relation(fields: [userId],  references: [id])
+  recipe Recipe?            @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  photos CookingRecordPhoto[]
+
+  @@index([groupId, cookedAt(sort: Desc)])
+  @@index([recipeId])
+  @@map("cooking_records")
+}
+
+model CookingRecordPhoto {
+  id              String   @id @default(uuid()) @db.Uuid
+  cookingRecordId String   @map("cooking_record_id") @db.Uuid
+  imageKey        String   @map("image_key") // S3キー: cooking-records/{groupId}/{recordId}/{uuid}.webp
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  cookingRecord CookingRecord @relation(fields: [cookingRecordId], references: [id], onDelete: Cascade)
+
+  @@index([cookingRecordId])
+  @@map("cooking_record_photos")
+}
+
+// =============================================
+// Meal Plan（献立カレンダー）
+// =============================================
+
+model MealPlan {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  date      DateTime @db.Date
+  memo      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  group Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  items MealPlanItem[]
+
+  @@unique([groupId, date])
+  @@index([groupId, date])
+  @@map("meal_plans")
+}
+
+model MealPlanItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  mealPlanId String   @map("meal_plan_id") @db.Uuid
+  recipeId   String?  @map("recipe_id") @db.Uuid   // Nullable: メモのみのアイテムも可
+  mealType   MealType @map("meal_type")
+  note       String?  @db.VarChar(100)              // 自由テキスト（レシピなし時など）
+  sortOrder  Int      @default(0) @map("sort_order")
+  addedBy    String   @map("added_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  recipe   Recipe?  @relation(fields: [recipeId],   references: [id], onDelete: SetNull)
+  user     User     @relation(fields: [addedBy],     references: [id])
+
+  @@index([mealPlanId])
+  @@map("meal_plan_items")
+}
+
+enum MealType {
+  BREAKFAST @map("breakfast")
+  LUNCH     @map("lunch")
+  DINNER    @map("dinner")
+  SNACK     @map("snack")
+
+  @@map("meal_type")
+}
+
+// =============================================
+// Shopping List（買い物リスト）
+// =============================================
+
+model ShoppingList {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  name      String   @db.VarChar(100) @default("買い物リスト")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  group Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  items ShoppingListItem[]
+
+  @@index([groupId])
+  @@map("shopping_lists")
+}
+
+model ShoppingListItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  shoppingListId String    @map("shopping_list_id") @db.Uuid
+  name           String    @db.VarChar(100)
+  amount         String?   @db.VarChar(50)
+  unit           String?   @db.VarChar(20)
+  memo           String?   @db.VarChar(200)
+  isPurchased    Boolean   @default(false) @map("is_purchased")
+  purchasedBy    String?   @map("purchased_by") @db.Uuid
+  purchasedAt    DateTime? @map("purchased_at")
+  addedBy        String    @map("added_by") @db.Uuid
+  sortOrder      Int       @default(0) @map("sort_order")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  shoppingList ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  addedByUser  User         @relation(fields: [addedBy], references: [id])
+
+  @@index([shoppingListId])
+  @@map("shopping_list_items")
+}
+
+// =============================================
+// Push Notification
+// =============================================
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+

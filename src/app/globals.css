@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   くっくる カラーシステム
+   ============================================ */
+:root {
+  --font-noto-sans-jp: 'Noto Sans JP', sans-serif;
+
+  --color-primary:        #FF6F91;
+  --color-primary-hover:  #FF3D6B;
+  --color-primary-light:  #FFE0E8;
+  --color-primary-50:     #FFF0F3;
+  --color-primary-shadow: rgba(255, 111, 145, 0.25);
+
+  --color-background: #FFFFFF;
+  --color-surface:    #FFF8FA;
+  --color-text:       #1A1A2E;
+  --color-text-muted: #6B7280;
+  --color-border:     #F3E8EE;
+
+  --safe-area-inset-top:    env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+}
+
+/* ============================================
+   Base
+   ============================================ */
+@layer base {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  body {
+    @apply text-gray-800 bg-white;
+    font-family: var(--font-noto-sans-jp), sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* スクロールバー非表示（モバイル向け） */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================
+   Components
+   ============================================ */
+@layer components {
+
+  /* ページコンテナ */
+  .page-container {
+    @apply max-w-2xl mx-auto px-4;
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+
+  /* ボトムナビ用パディング */
+  .pb-tab-safe {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  /* Safe area helpers */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* プライマリボタン */
+  .btn-primary {
+    @apply inline-flex items-center justify-center
+           rounded-2xl px-6 py-3
+           bg-primary text-white font-medium
+           transition-all duration-200
+           hover:bg-primary-600 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: 0 4px 15px var(--color-primary-shadow);
+  }
+
+  /* セカンダリボタン */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center
+           rounded-2xl px-6 py-3
+           bg-primary-50 text-primary font-medium
+           border border-primary-200
+           transition-all duration-200
+           hover:bg-primary-100 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* カード */
+  .card {
+    @apply bg-white rounded-card p-4;
+    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200 hover:-translate-y-0.5;
+    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  }
+  .card-hover:hover {
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+  }
+
+  /* 入力フォーム */
+  .input {
+    @apply w-full rounded-2xl border border-gray-200 px-4 py-3
+           text-gray-800 placeholder-gray-400
+           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+           transition-all duration-200;
+  }
+
+  .input-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  /* セクションヘッダー */
+  .section-title {
+    @apply text-lg font-bold text-gray-800;
+  }
+
+  /* 空状態 */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-16 text-center;
+  }
+}
+

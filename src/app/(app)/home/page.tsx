@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useApp } from '@/contexts/AppContext';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
@@ -86,9 +87,16 @@ export default function HomePage() {
               美味しい料理やレシピを記録しましょう🍳
             </p>
           </div>
-          <span className="absolute -right-3 -bottom-5 text-7xl opacity-20 select-none">
-            🥘
-          </span>
+          <div className="absolute -right-2 -bottom-4 opacity-25 select-none">
+            <Image
+              src="/icon-192.png"
+              alt=""
+              width={80}
+              height={80}
+              className="rounded-2xl"
+              aria-hidden
+            />
+          </div>
         </div>
 
         {/* グループ未参加時の招待バナー（強制ではなく案内カード） */}

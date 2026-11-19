@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Bell, Users, Settings } from 'lucide-react';
+import { ChevronLeft, Users, Settings } from 'lucide-react';
 
 interface HeaderProps {
   title?: string;
@@ -50,8 +51,14 @@ export function Header({
             </button>
           ) : (
             <Link href="/home" className="flex items-center gap-2 group">
-              <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-pink-300 flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-primary/20">
-                🍳
+              <span className="w-8 h-8 rounded-xl overflow-hidden shadow-sm shadow-primary/20 flex-shrink-0">
+                <Image
+                  src="/icon-192.png"
+                  alt="くっくる"
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                />
               </span>
               <span className="font-bold text-lg text-gray-900 tracking-tight group-hover:text-primary transition-colors">
                 くっくる

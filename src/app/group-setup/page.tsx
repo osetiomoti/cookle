@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useToast } from '@/components/Toast';
-import { Users, PlusCircle, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export default function GroupSetupPage() {
   const router = useRouter();
@@ -73,8 +74,14 @@ export default function GroupSetupPage() {
     <div className="min-h-screen bg-gradient-to-b from-pink-50/70 to-white flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-pink-100 flex items-center justify-center text-3xl mx-auto mb-3 shadow-sm">
-            👥
+          <div className="mx-auto mb-3 w-20 h-20">
+            <Image
+              src="/icon-192.png"
+              alt="くっくる"
+              width={80}
+              height={80}
+              className="rounded-[1.6rem] shadow-lg"
+            />
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
             グループの準備

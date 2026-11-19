@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
+import Image from 'next/image';
 
 function LoginForm() {
   const router = useRouter();
@@ -55,19 +56,24 @@ function LoginForm() {
       : error === 'token_exchange_failed'
       ? '認証処理に失敗しました。しばらくしてからお試しください。'
       : error === 'config_missing'
-      ? '認証の設定が不足しています。管理者に問い合わせてください。'
+      ? '認証の設定が不完全です。管理者に問い合わせてください。'
       : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/60 to-white flex flex-col items-center justify-center p-6 text-center">
-      {/* ロゴ・キャラクターアイコン */}
+      {/* キャラクターアイコン（食べレコ同様の表示スタイル） */}
       <div className="mb-4 animate-bounce-slow">
-        <div className="w-28 h-28 rounded-3xl bg-gradient-to-tr from-primary to-pink-300 flex items-center justify-center text-5xl shadow-xl shadow-primary/25 border-4 border-white">
-          🍳
-        </div>
+        <Image
+          src="/icon-512.png"
+          alt="くっくる"
+          width={140}
+          height={140}
+          className="drop-shadow-xl rounded-[2.8rem]"
+          priority
+        />
       </div>
 
-      <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">
+      <h1 className="text-3xl font-extrabold text-primary mb-2 tracking-tight">
         くっくる
       </h1>
       <p className="text-sm text-gray-500 mb-8 max-w-xs leading-relaxed">
@@ -105,4 +111,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-

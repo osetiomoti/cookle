@@ -56,16 +56,11 @@ export default function MyPage() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     if (!confirm('ログアウトしますか？')) return;
-    try {
-      localStorage.removeItem('cookle_rt');
-      localStorage.removeItem('cookle_current_group');
-      await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = '/login';
-    } catch {
-      window.location.href = '/login';
-    }
+    localStorage.removeItem('cookle_rt');
+    localStorage.removeItem('cookle_current_group');
+    window.location.href = '/api/auth/logout';
   };
 
   const avatarUrl = user?.avatarKey ? getImageUrl(user.avatarKey) : null;

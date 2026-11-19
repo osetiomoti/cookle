@@ -55,12 +55,12 @@ export default function NewRecipePage() {
 
   // カテゴリ一覧
   const { data: categories } = useSWR<any[]>(
-    currentGroup ? `/api/categories?groupId=${currentGroup.id}` : null
+    currentGroup ? `/api/categories?groupId=${currentGroup.id}` : '/api/categories'
   );
 
   // タグ一覧
   const { data: tags } = useSWR<any[]>(
-    currentGroup ? `/api/tags?groupId=${currentGroup.id}` : null
+    currentGroup ? `/api/tags?groupId=${currentGroup.id}` : '/api/tags'
   );
 
   // ともだち一覧
@@ -111,10 +111,6 @@ export default function NewRecipePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentGroup) {
-      error('グループが選択されていません');
-      return;
-    }
     if (!title.trim()) {
       error('レシピ名を入力してください');
       return;
@@ -126,7 +122,7 @@ export default function NewRecipePage() {
     try {
       setIsLoading(true);
       const payload = {
-        groupId: currentGroup.id,
+        groupId: currentGroup?.id || undefined,
         title: title.trim(),
         description: description.trim() || undefined,
         mainImageKey: mainImageKey || undefined,

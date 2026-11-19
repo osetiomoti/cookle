@@ -21,7 +21,7 @@ export default function CookingRecordsPage() {
   const { success, error } = useToast();
 
   const { data: records, mutate, isLoading } = useSWR<any[]>(
-    currentGroup ? `/api/cooking-records?groupId=${currentGroup.id}` : null
+    currentGroup ? `/api/cooking-records?groupId=${currentGroup.id}` : '/api/cooking-records'
   );
 
   // 新規記録モーダル
@@ -36,7 +36,6 @@ export default function CookingRecordsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentGroup) return;
     if (!title.trim()) {
       error('料理名を入力してください');
       return;
@@ -48,7 +47,7 @@ export default function CookingRecordsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          groupId: currentGroup.id,
+          groupId: currentGroup?.id || undefined,
           title: title.trim(),
           cookedAt,
           memo: memo.trim() || undefined,

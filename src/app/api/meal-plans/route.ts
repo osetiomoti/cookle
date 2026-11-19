@@ -4,8 +4,8 @@ import { withAuth, checkGroupMembership } from '@/lib/auth';
 import { getImageUrl } from '@/lib/image';
 
 /**
- * GET /api/meal-plans?groupId=xxx&year=2026&month=11
- * 月間献立一覧を取得
+ * GET /api/meal-plans
+ * 月間献立一覧を取得（グループまたは個人）
  */
 export async function GET(request: NextRequest) {
   return withAuth(request, async (auth) => {
@@ -14,27 +14,31 @@ export async function GET(request: NextRequest) {
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
     const month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
 
-    if (!groupId) {
-      return NextResponse.json({ success: false, error: 'groupId is required' }, { status: 400 });
+    if (groupId) {
+      const isMember = await checkGroupMembership(auth.userId, groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
     }
 
-    const isMember = await checkGroupMembership(auth.userId, groupId);
-    if (!isMember) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 月初〜月末
     const startDate = new Date(Date.UTC(year, month - 1, 1));
     const endDate = new Date(Date.UTC(year, month, 0));
 
-    const mealPlans = await prisma.mealPlan.findMany({
-      where: {
-        groupId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
+    const whereConditions: any = {
+      date: {
+        gte: startDate,
+        lte: endDate,
       },
+    };
+
+    if (groupId) {
+      whereConditions.groupId = groupId;
+    } else {
+      whereConditions.userId = auth.userId;
+    }
+
+    const mealPlans = await prisma.mealPlan.findMany({
+      where: whereConditions,
       include: {
         items: {
           include: {
@@ -72,4 +76,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: formatted });
   });
 }
-

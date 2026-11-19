@@ -13,30 +13,34 @@ const DEFAULT_TAGS = [
 ];
 
 /**
- * GET /api/tags?groupId=xxx
- * グループのタグ一覧
+ * GET /api/tags
+ * タグ一覧（グループまたは個人）
  */
 export async function GET(request: NextRequest) {
   return withAuth(request, async (auth) => {
     const groupId = request.nextUrl.searchParams.get('groupId') || auth.groupId;
-    if (!groupId) {
-      return NextResponse.json({ success: false, error: 'groupId is required' }, { status: 400 });
+
+    if (groupId) {
+      const isMember = await checkGroupMembership(auth.userId, groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
     }
 
-    const isMember = await checkGroupMembership(auth.userId, groupId);
-    if (!isMember) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
-    }
+    const whereCondition = groupId
+      ? { groupId }
+      : { userId: auth.userId, groupId: null };
 
     let tags = await prisma.tag.findMany({
-      where: { groupId },
+      where: whereCondition,
       orderBy: { sortOrder: 'asc' },
     });
 
     if (tags.length === 0) {
       await prisma.tag.createMany({
         data: DEFAULT_TAGS.map((name, idx) => ({
-          groupId,
+          groupId: groupId || null,
+          userId: groupId ? null : auth.userId,
           name,
           sortOrder: idx,
         })),
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
       });
 
       tags = await prisma.tag.findMany({
-        where: { groupId },
+        where: whereCondition,
         orderBy: { sortOrder: 'asc' },
       });
     }
@@ -54,7 +58,7 @@ export async function GET(request: NextRequest) {
 }
 
 const CreateTagSchema = z.object({
-  groupId: z.string().uuid(),
+  groupId: z.string().uuid().optional().nullable(),
   name: z.string().min(1).max(50),
 });
 
@@ -71,15 +75,23 @@ export async function POST(request: NextRequest) {
     }
 
     const { groupId, name } = parsed.data;
-    const isMember = await checkGroupMembership(auth.userId, groupId);
-    if (!isMember) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+
+    if (groupId) {
+      const isMember = await checkGroupMembership(auth.userId, groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
     }
 
-    const count = await prisma.tag.count({ where: { groupId } });
+    const whereCondition = groupId
+      ? { groupId }
+      : { userId: auth.userId, groupId: null };
+
+    const count = await prisma.tag.count({ where: whereCondition });
     const tag = await prisma.tag.create({
       data: {
-        groupId,
+        groupId: groupId || null,
+        userId: groupId ? null : auth.userId,
         name,
         sortOrder: count,
       },
@@ -88,4 +100,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: tag }, { status: 201 });
   });
 }
-

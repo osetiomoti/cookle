@@ -30,8 +30,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Shopping list not found' }, { status: 404 });
     }
 
-    const isMember = await checkGroupMembership(auth.userId, list.groupId);
-    if (!isMember) {
+    if (list.groupId) {
+      const isMember = await checkGroupMembership(auth.userId, list.groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (list.userId !== auth.userId) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -87,8 +91,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
     }
 
-    const isMember = await checkGroupMembership(auth.userId, item.shoppingList.groupId);
-    if (!isMember) {
+    if (item.shoppingList.groupId) {
+      const isMember = await checkGroupMembership(auth.userId, item.shoppingList.groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (item.shoppingList.userId !== auth.userId) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -135,8 +143,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
     }
 
-    const isMember = await checkGroupMembership(auth.userId, item.shoppingList.groupId);
-    if (!isMember) {
+    if (item.shoppingList.groupId) {
+      const isMember = await checkGroupMembership(auth.userId, item.shoppingList.groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (item.shoppingList.userId !== auth.userId) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -145,4 +157,3 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, data: { deleted: true } });
   });
 }
-

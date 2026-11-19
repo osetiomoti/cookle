@@ -114,7 +114,8 @@ export async function withAuth(
 /**
  * グループメンバーシップを確認する
  */
-export async function checkGroupMembership(userId: string, groupId: string): Promise<boolean> {
+export async function checkGroupMembership(userId: string, groupId?: string | null): Promise<boolean> {
+  if (!groupId) return false;
   const member = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId, userId } },
   });

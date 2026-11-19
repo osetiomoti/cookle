@@ -194,6 +194,18 @@ export default function GroupsPage() {
               </Card>
             );
           })}
+
+          {groups.length === 0 && (
+            <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-pink-200 p-6 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-pink-100 text-2xl flex items-center justify-center mx-auto">
+                👥
+              </div>
+              <h4 className="text-sm font-bold text-gray-800">グループに未参加です</h4>
+              <p className="text-xs text-gray-500 max-w-xs mx-auto">
+                グループを作ると、家族やパートナーと一緒に献立や買い物リストをリアルタイムで共有できます。個人利用のままでも全機能をお使いいただけます。
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

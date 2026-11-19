@@ -30,21 +30,20 @@ export default function RecipesPage() {
 
   // カテゴリ一覧
   const { data: categories } = useSWR<any[]>(
-    currentGroup ? `/api/categories?groupId=${currentGroup.id}` : null
+    currentGroup ? `/api/categories?groupId=${currentGroup.id}` : '/api/categories'
   );
 
   // タグ一覧
   const { data: tags } = useSWR<any[]>(
-    currentGroup ? `/api/tags?groupId=${currentGroup.id}` : null
+    currentGroup ? `/api/tags?groupId=${currentGroup.id}` : '/api/tags'
   );
 
   // レシピ一覧
   const queryUrl = useMemo(() => {
-    if (!currentGroup) return null;
     const params = new URLSearchParams();
     if (viewMode === 'friends') {
       params.append('includeFriendShared', 'true');
-    } else {
+    } else if (currentGroup) {
       params.append('groupId', currentGroup.id);
     }
     if (keyword.trim()) params.append('keyword', keyword.trim());
@@ -58,10 +57,14 @@ export default function RecipesPage() {
 
   return (
     <div className="min-h-screen bg-[#fcfcfc]">
-      <Header title="レシピ一覧" showGroupSelector groupName={currentGroup?.name} />
+      <Header
+        title="レシピ一覧"
+        showGroupSelector={!!currentGroup}
+        groupName={currentGroup?.name || 'マイキッチン'}
+      />
 
       <div className="px-4 py-4 space-y-4">
-        {/* タブ切り替え（グループのレシピ / ともだち共有） */}
+        {/* タブ切り替え（グループまたはマイレシピ / ともだち共有） */}
         <div className="flex bg-gray-100/90 p-1 rounded-2xl">
           <button
             type="button"
@@ -72,7 +75,7 @@ export default function RecipesPage() {
                 : 'text-gray-500 hover:text-gray-800'
             }`}
           >
-            グループのレシピ
+            {currentGroup ? 'グループのレシピ' : 'マイレシピ'}
           </button>
           <button
             type="button"

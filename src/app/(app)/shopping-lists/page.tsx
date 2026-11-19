@@ -22,7 +22,7 @@ export default function ShoppingListsPage() {
   const [isAdding, setIsAdding] = useState(false);
 
   const { data: list, mutate, isLoading } = useSWR<any>(
-    currentGroup ? `/api/shopping-lists?groupId=${currentGroup.id}` : null
+    currentGroup ? `/api/shopping-lists?groupId=${currentGroup.id}` : '/api/shopping-lists'
   );
 
   // アイテム追加
@@ -105,7 +105,11 @@ export default function ShoppingListsPage() {
 
   return (
     <div className="min-h-screen bg-[#fcfcfc] pb-16">
-      <Header title="買い物リスト" showGroupSelector groupName={currentGroup?.name} />
+      <Header
+        title="買い物リスト"
+        showGroupSelector={!!currentGroup}
+        groupName={currentGroup?.name || 'マイキッチン'}
+      />
 
       <div className="px-4 py-4 space-y-4 max-w-xl mx-auto">
         {/* 素早い追加フォーム */}

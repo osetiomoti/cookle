@@ -158,6 +158,16 @@ export default function GroupSetupPage() {
             </form>
           )}
         </Card>
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => router.push('/home')}
+            className="text-xs text-gray-500 hover:text-primary transition-colors font-semibold inline-flex items-center gap-1 py-2 px-3 rounded-lg hover:bg-pink-50"
+          >
+            <span>グループを作らずに始める（個人利用）</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );

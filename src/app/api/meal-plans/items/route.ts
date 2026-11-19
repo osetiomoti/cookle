@@ -4,8 +4,8 @@ import { withAuth, checkGroupMembership } from '@/lib/auth';
 import { z } from 'zod';
 
 const AddMealPlanItemSchema = z.object({
-  groupId: z.string().uuid(),
-  date: z.string().min(1), // YYYY-MM-DD
+  groupId: z.string().uuid().optional().nullable(),
+  date: z.string().min(1),
   mealType: z.enum(['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']),
   recipeId: z.string().uuid().optional().nullable(),
   note: z.string().max(100).optional().nullable(),
@@ -13,7 +13,7 @@ const AddMealPlanItemSchema = z.object({
 
 /**
  * POST /api/meal-plans/items
- * 献立アイテムの追加
+ * 献立アイテムの追加（グループまたは個人）
  */
 export async function POST(request: NextRequest) {
   return withAuth(request, async (auth) => {
@@ -25,27 +25,31 @@ export async function POST(request: NextRequest) {
 
     const { groupId, date, mealType, recipeId, note } = parsed.data;
 
-    const isMember = await checkGroupMembership(auth.userId, groupId);
-    if (!isMember) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    if (groupId) {
+      const isMember = await checkGroupMembership(auth.userId, groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const planDate = new Date(date);
 
-    // 該当日のMealPlanを取得または作成
-    const mealPlan = await prisma.mealPlan.upsert({
-      where: {
-        groupId_date: {
-          groupId,
+    // 該当日のMealPlanを取得または作成（グループまたは個人）
+    let mealPlan = await prisma.mealPlan.findFirst({
+      where: groupId
+        ? { groupId, date: planDate }
+        : { userId: auth.userId, groupId: null, date: planDate },
+    });
+
+    if (!mealPlan) {
+      mealPlan = await prisma.mealPlan.create({
+        data: {
+          groupId: groupId || null,
+          userId: auth.userId,
           date: planDate,
         },
-      },
-      update: {},
-      create: {
-        groupId,
-        date: planDate,
-      },
-    });
+      });
+    }
 
     const count = await prisma.mealPlanItem.count({
       where: { mealPlanId: mealPlan.id, mealType },
@@ -91,9 +95,15 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
     }
 
-    const isMember = await checkGroupMembership(auth.userId, item.mealPlan.groupId);
-    if (!isMember) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    if (item.mealPlan.groupId) {
+      const isMember = await checkGroupMembership(auth.userId, item.mealPlan.groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
+    } else {
+      if (item.mealPlan.userId !== auth.userId) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     await prisma.mealPlanItem.delete({ where: { id: itemId } });
@@ -101,4 +111,3 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, data: { deleted: true } });
   });
 }
-

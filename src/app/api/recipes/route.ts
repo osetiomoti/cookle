@@ -5,7 +5,7 @@ import { toS3Key, getImageUrl } from '@/lib/image';
 import { z } from 'zod';
 
 const CreateRecipeSchema = z.object({
-  groupId: z.string().uuid(),
+  groupId: z.string().uuid().optional().nullable(),
   title: z.string().min(1, 'レシピ名を入力してください').max(100),
   description: z.string().optional(),
   mainImageKey: z.string().optional(),
@@ -29,12 +29,12 @@ const CreateRecipeSchema = z.object({
       imageKey: z.string().optional().nullable(),
     })
   ).default([]),
-  friendUserIds: z.array(z.string().uuid()).optional(), // ともだち共有
+  friendUserIds: z.array(z.string().uuid()).optional(),
 });
 
 /**
- * GET /api/recipes?groupId=xxx&keyword=xxx&categoryId=xxx&tagId=xxx&favoriteOnly=true&maxCookTime=xxx
- * レシピ一覧の取得と検索
+ * GET /api/recipes
+ * レシピ一覧の取得と検索（グループなしでも自分のレシピを表示可能）
  */
 export async function GET(request: NextRequest) {
   return withAuth(request, async (auth) => {
@@ -47,10 +47,6 @@ export async function GET(request: NextRequest) {
     const maxCookTime = searchParams.get('maxCookTime') ? parseInt(searchParams.get('maxCookTime')!) : undefined;
     const includeFriendShared = searchParams.get('includeFriendShared') === 'true';
 
-    if (!groupId && !includeFriendShared) {
-      return NextResponse.json({ success: false, error: 'groupId is required' }, { status: 400 });
-    }
-
     if (groupId) {
       const isMember = await checkGroupMembership(auth.userId, groupId);
       if (!isMember) {
@@ -58,20 +54,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 検索フィルタ構築
     const whereConditions: any = {
       deletedAt: null,
     };
 
-    if (includeFriendShared && !groupId) {
-      // ともだちから共有されたレシピのみ
+    if (includeFriendShared) {
       whereConditions.friendShares = {
         some: { sharedWith: auth.userId },
       };
     } else if (groupId) {
-      // グループ内レシピ、またはともだち共有
       whereConditions.OR = [
         { groupId },
+        { friendShares: { some: { sharedWith: auth.userId } } },
+      ];
+    } else {
+      // グループ未指定・未所属時は自分のレシピ + 友達共有レシピ
+      whereConditions.OR = [
+        { createdBy: auth.userId },
         { friendShares: { some: { sharedWith: auth.userId } } },
       ];
     }
@@ -143,7 +142,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/recipes
- * レシピの新規作成
+ * レシピの新規作成（グループなしでも個人レシピとして作成可能）
  */
 export async function POST(request: NextRequest) {
   return withAuth(request, async (auth) => {
@@ -171,14 +170,16 @@ export async function POST(request: NextRequest) {
       friendUserIds,
     } = parsed.data;
 
-    const isMember = await checkGroupMembership(auth.userId, groupId);
-    if (!isMember) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    if (groupId) {
+      const isMember = await checkGroupMembership(auth.userId, groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const recipe = await prisma.recipe.create({
       data: {
-        groupId,
+        groupId: groupId || null,
         createdBy: auth.userId,
         title,
         description,
@@ -227,4 +228,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: recipe }, { status: 201 });
   });
 }
-

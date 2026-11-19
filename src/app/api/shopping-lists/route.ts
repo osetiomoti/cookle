@@ -3,24 +3,26 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, checkGroupMembership } from '@/lib/auth';
 
 /**
- * GET /api/shopping-lists?groupId=xxx
- * グループの買い物リストと全アイテムを取得
+ * GET /api/shopping-lists
+ * 買い物リストと全アイテムを取得（グループまたは個人）
  */
 export async function GET(request: NextRequest) {
   return withAuth(request, async (auth) => {
     const groupId = request.nextUrl.searchParams.get('groupId') || auth.groupId;
-    if (!groupId) {
-      return NextResponse.json({ success: false, error: 'groupId is required' }, { status: 400 });
+
+    if (groupId) {
+      const isMember = await checkGroupMembership(auth.userId, groupId);
+      if (!isMember) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
     }
 
-    const isMember = await checkGroupMembership(auth.userId, groupId);
-    if (!isMember) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
-    }
+    const whereCondition = groupId
+      ? { groupId }
+      : { userId: auth.userId, groupId: null };
 
-    // グループのデフォルト買い物リストを取得または作成
     let shoppingList = await prisma.shoppingList.findFirst({
-      where: { groupId },
+      where: whereCondition,
       include: {
         items: {
           include: {
@@ -38,7 +40,8 @@ export async function GET(request: NextRequest) {
     if (!shoppingList) {
       shoppingList = await prisma.shoppingList.create({
         data: {
-          groupId,
+          groupId: groupId || null,
+          userId: auth.userId,
           name: '買い物リスト',
         },
         include: {
@@ -54,4 +57,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: shoppingList });
   });
 }
-

@@ -22,16 +22,20 @@ model User {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  groupMembers      GroupMember[]
-  groupsCreated     Group[]           @relation("GroupCreator")
-  recipes           Recipe[]
-  cookingRecords    CookingRecord[]
-  favorites         Favorite[]
-  favoriteFolders   FavoriteFolder[]
-  mealPlanItems     MealPlanItem[]
-  shoppingListItems ShoppingListItem[]
-  friendshipsAsUser   Friendship[]    @relation("FriendshipsAsUser")
-  friendshipsAsFriend Friendship[]    @relation("FriendshipsAsFriend")
+  groupMembers        GroupMember[]
+  groupsCreated       Group[]              @relation("GroupCreator")
+  recipes             Recipe[]
+  cookingRecords      CookingRecord[]
+  favorites           Favorite[]
+  favoriteFolders     FavoriteFolder[]
+  mealPlans           MealPlan[]
+  mealPlanItems       MealPlanItem[]
+  shoppingLists       ShoppingList[]
+  shoppingListItems   ShoppingListItem[]
+  categories          Category[]
+  tags                Tag[]
+  friendshipsAsUser   Friendship[]         @relation("FriendshipsAsUser")
+  friendshipsAsFriend Friendship[]         @relation("FriendshipsAsFriend")
   pushSubscriptions   PushSubscription[]
 
   @@map("users")
@@ -52,14 +56,14 @@ model Group {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  creator           User              @relation("GroupCreator", fields: [createdBy], references: [id])
-  members           GroupMember[]
-  recipes           Recipe[]
-  cookingRecords    CookingRecord[]
-  categories        Category[]
-  tags              Tag[]
-  mealPlans         MealPlan[]
-  shoppingLists     ShoppingList[]
+  creator        User            @relation("GroupCreator", fields: [createdBy], references: [id])
+  members        GroupMember[]
+  recipes        Recipe[]
+  cookingRecords CookingRecord[]
+  categories     Category[]
+  tags           Tag[]
+  mealPlans      MealPlan[]
+  shoppingLists  ShoppingList[]
 
   @@map("groups")
 }
@@ -115,34 +119,40 @@ enum FriendshipStatus {
 }
 
 // =============================================
-// Category & Tag
+// Category & Tag (グループまたは個人単位)
 // =============================================
 
 model Category {
   id        String   @id @default(uuid()) @db.Uuid
-  groupId   String   @map("group_id") @db.Uuid
+  groupId   String?  @map("group_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
   name      String   @db.VarChar(50)
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
 
-  group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group   Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId],  references: [id], onDelete: Cascade)
   recipes Recipe[]
 
-  @@unique([groupId, name])
+  @@index([groupId])
+  @@index([userId])
   @@map("categories")
 }
 
 model Tag {
   id        String   @id @default(uuid()) @db.Uuid
-  groupId   String   @map("group_id") @db.Uuid
+  groupId   String?  @map("group_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
   name      String   @db.VarChar(50)
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
 
-  group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group      Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user       User?       @relation(fields: [userId],  references: [id], onDelete: Cascade)
   recipeTags RecipeTag[]
 
-  @@unique([groupId, name])
+  @@index([groupId])
+  @@index([userId])
   @@map("tags")
 }
 
@@ -152,13 +162,13 @@ model Tag {
 
 model Recipe {
   id           String       @id @default(uuid()) @db.Uuid
-  groupId      String       @map("group_id") @db.Uuid
+  groupId      String?      @map("group_id") @db.Uuid  // Nullable: グループ未所属でもOK
   createdBy    String       @map("created_by") @db.Uuid
   title        String       @db.VarChar(100)
   description  String?
-  mainImageKey String?      @map("main_image_key") // S3キー: recipes/{groupId}/{recipeId}/{uuid}.webp
-  cookTimeMin  Int?         @map("cook_time_min")  // 調理時間（分）
-  servings     Int?                                // 何人分
+  mainImageKey String?      @map("main_image_key")
+  cookTimeMin  Int?         @map("cook_time_min")
+  servings     Int?
   difficulty   Difficulty?
   categoryId   String?      @map("category_id") @db.Uuid
   createdAt    DateTime     @default(now()) @map("created_at")
@@ -166,19 +176,19 @@ model Recipe {
   deletedAt    DateTime?    @map("deleted_at")
 
   // Relations
-  group          Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  creator        User               @relation(fields: [createdBy], references: [id])
-  category       Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  group          Group?              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator        User                @relation(fields: [createdBy], references: [id])
+  category       Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   ingredients    RecipeIngredient[]
   steps          RecipeStep[]
   tags           RecipeTag[]
   favorites      Favorite[]
   cookingRecords CookingRecord[]
   mealPlanItems  MealPlanItem[]
-  // ともだち共有
   friendShares   RecipeFriendShare[]
 
   @@index([groupId, createdAt(sort: Desc)])
+  @@index([createdBy, createdAt(sort: Desc)])
   @@index([groupId, categoryId])
   @@map("recipes")
 }
@@ -195,8 +205,8 @@ model RecipeIngredient {
   id        String   @id @default(uuid()) @db.Uuid
   recipeId  String   @map("recipe_id") @db.Uuid
   name      String   @db.VarChar(100)
-  amount    String?  @db.VarChar(50) // 分量（例: "200"）
-  unit      String?  @db.VarChar(20) // 単位（例: "g", "ml", "個"）
+  amount    String?  @db.VarChar(50)
+  unit      String?  @db.VarChar(20)
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -211,7 +221,7 @@ model RecipeStep {
   recipeId    String   @map("recipe_id") @db.Uuid
   stepNumber  Int      @map("step_number")
   description String
-  imageKey    String?  @map("image_key") // S3キー: recipes/{groupId}/{recipeId}/steps/{n}_{uuid}.webp
+  imageKey    String?  @map("image_key")
   createdAt   DateTime @default(now()) @map("created_at")
 
   recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
@@ -231,12 +241,11 @@ model RecipeTag {
   @@map("recipe_tags")
 }
 
-// ともだちへのレシピ共有（グループ外共有）
 model RecipeFriendShare {
   id         String   @id @default(uuid()) @db.Uuid
   recipeId   String   @map("recipe_id") @db.Uuid
-  sharedBy   String   @map("shared_by") @db.Uuid    // 共有した人
-  sharedWith String   @map("shared_with") @db.Uuid  // 共有された人
+  sharedBy   String   @map("shared_by") @db.Uuid
+  sharedWith String   @map("shared_with") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at")
 
   recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
@@ -266,10 +275,10 @@ model FavoriteFolder {
 }
 
 model Favorite {
-  id       String   @id @default(uuid()) @db.Uuid
-  userId   String   @map("user_id") @db.Uuid
-  recipeId String   @map("recipe_id") @db.Uuid
-  folderId String?  @map("folder_id") @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  recipeId  String   @map("recipe_id") @db.Uuid
+  folderId  String?  @map("folder_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
   user   User            @relation(fields: [userId],   references: [id], onDelete: Cascade)
@@ -287,22 +296,23 @@ model Favorite {
 
 model CookingRecord {
   id         String    @id @default(uuid()) @db.Uuid
-  groupId    String    @map("group_id") @db.Uuid
+  groupId    String?   @map("group_id") @db.Uuid  // Nullable
   userId     String    @map("user_id") @db.Uuid
-  recipeId   String?   @map("recipe_id") @db.Uuid   // Nullable: 自由な料理記録対応
-  title      String    @db.VarChar(100)              // レシピなし時はタイトル自由入力
+  recipeId   String?   @map("recipe_id") @db.Uuid
+  title      String    @db.VarChar(100)
   cookedAt   DateTime  @map("cooked_at") @db.Date
   memo       String?
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
   deletedAt  DateTime? @map("deleted_at")
 
-  group  Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group  Group?             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user   User               @relation(fields: [userId],  references: [id])
   recipe Recipe?            @relation(fields: [recipeId], references: [id], onDelete: SetNull)
   photos CookingRecordPhoto[]
 
   @@index([groupId, cookedAt(sort: Desc)])
+  @@index([userId, cookedAt(sort: Desc)])
   @@index([recipeId])
   @@map("cooking_records")
 }
@@ -310,7 +320,7 @@ model CookingRecord {
 model CookingRecordPhoto {
   id              String   @id @default(uuid()) @db.Uuid
   cookingRecordId String   @map("cooking_record_id") @db.Uuid
-  imageKey        String   @map("image_key") // S3キー: cooking-records/{groupId}/{recordId}/{uuid}.webp
+  imageKey        String   @map("image_key")
   sortOrder       Int      @default(0) @map("sort_order")
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -326,26 +336,28 @@ model CookingRecordPhoto {
 
 model MealPlan {
   id        String   @id @default(uuid()) @db.Uuid
-  groupId   String   @map("group_id") @db.Uuid
+  groupId   String?  @map("group_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
   date      DateTime @db.Date
   memo      String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  group Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group Group?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User?         @relation(fields: [userId],  references: [id], onDelete: Cascade)
   items MealPlanItem[]
 
-  @@unique([groupId, date])
   @@index([groupId, date])
+  @@index([userId, date])
   @@map("meal_plans")
 }
 
 model MealPlanItem {
   id         String   @id @default(uuid()) @db.Uuid
   mealPlanId String   @map("meal_plan_id") @db.Uuid
-  recipeId   String?  @map("recipe_id") @db.Uuid   // Nullable: メモのみのアイテムも可
+  recipeId   String?  @map("recipe_id") @db.Uuid
   mealType   MealType @map("meal_type")
-  note       String?  @db.VarChar(100)              // 自由テキスト（レシピなし時など）
+  note       String?  @db.VarChar(100)
   sortOrder  Int      @default(0) @map("sort_order")
   addedBy    String   @map("added_by") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at")
@@ -373,15 +385,18 @@ enum MealType {
 
 model ShoppingList {
   id        String   @id @default(uuid()) @db.Uuid
-  groupId   String   @map("group_id") @db.Uuid
+  groupId   String?  @map("group_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
   name      String   @db.VarChar(100) @default("買い物リスト")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  group Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group Group?             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User?              @relation(fields: [userId],  references: [id], onDelete: Cascade)
   items ShoppingListItem[]
 
   @@index([groupId])
+  @@index([userId])
   @@map("shopping_lists")
 }
 
@@ -425,4 +440,3 @@ model PushSubscription {
   @@index([userId])
   @@map("push_subscriptions")
 }
-

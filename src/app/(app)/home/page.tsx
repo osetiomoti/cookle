@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
@@ -18,46 +17,42 @@ import {
   ChevronRight,
   Clock,
   Heart,
-  Sparkles,
+  Users,
 } from 'lucide-react';
 import { formatCookTime } from '@/lib/utils';
 
 export default function HomePage() {
-  const router = useRouter();
   const { user, groups, currentGroup, isLoading } = useApp();
-
-  // グループが未所属の場合はセットアップ画面へ
-  useEffect(() => {
-    if (!isLoading && groups.length === 0) {
-      router.push('/group-setup');
-    }
-  }, [isLoading, groups, router]);
 
   // 今日の献立
   const todayStr = new Date().toISOString().split('T')[0];
-  const { data: mealPlans } = useSWR<any[]>(
-    currentGroup ? `/api/meal-plans?groupId=${currentGroup.id}` : null
-  );
+  const mealPlansUrl = currentGroup
+    ? `/api/meal-plans?groupId=${currentGroup.id}`
+    : `/api/meal-plans`;
+  const { data: mealPlans } = useSWR<any[]>(mealPlansUrl);
   const todayPlan = mealPlans?.find((p) => p.dateString === todayStr);
 
   // レシピ一覧（上位4件）
-  const { data: recipes } = useSWR<any[]>(
-    currentGroup ? `/api/recipes?groupId=${currentGroup.id}` : null
-  );
+  const recipesUrl = currentGroup
+    ? `/api/recipes?groupId=${currentGroup.id}`
+    : `/api/recipes`;
+  const { data: recipes } = useSWR<any[]>(recipesUrl);
 
   // 料理記録一覧（上位3件）
-  const { data: records } = useSWR<any[]>(
-    currentGroup ? `/api/cooking-records?groupId=${currentGroup.id}` : null
-  );
+  const recordsUrl = currentGroup
+    ? `/api/cooking-records?groupId=${currentGroup.id}`
+    : `/api/cooking-records`;
+  const { data: records } = useSWR<any[]>(recordsUrl);
 
   // 買い物リスト未完了件数
-  const { data: shoppingList } = useSWR<any>(
-    currentGroup ? `/api/shopping-lists?groupId=${currentGroup.id}` : null
-  );
+  const shoppingUrl = currentGroup
+    ? `/api/shopping-lists?groupId=${currentGroup.id}`
+    : `/api/shopping-lists`;
+  const { data: shoppingList } = useSWR<any>(shoppingUrl);
   const unpurchasedCount =
     shoppingList?.items?.filter((item: any) => !item.isPurchased)?.length || 0;
 
-  if (isLoading || !currentGroup) {
+  if (isLoading) {
     return (
       <div className="p-4 space-y-4">
         <Skeleton className="h-14 w-full" />
@@ -67,29 +62,58 @@ export default function HomePage() {
     );
   }
 
+  const currentTitle = currentGroup ? currentGroup.name : 'マイキッチン';
+
   return (
     <div className="min-h-screen bg-[#fcfcfc]">
-      <Header showGroupSelector groupName={currentGroup.name} />
+      <Header
+        showGroupSelector={groups.length > 0}
+        groupName={currentGroup?.name || 'グループ未参加'}
+      />
 
       <div className="px-4 py-4 space-y-5">
         {/* ウェルカムバナー */}
         <div className="bg-gradient-to-r from-pink-500 via-primary to-rose-400 rounded-3xl p-5 text-white shadow-primary relative overflow-hidden">
           <div className="relative z-10">
             <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-[11px] font-semibold backdrop-blur-sm mb-1.5">
-              {currentGroup.name}
+              {currentTitle}
             </span>
             <h2 className="text-xl font-bold tracking-tight mb-1">
               こんにちは、{user?.name || 'ゲスト'}さん！
             </h2>
             <p className="text-xs text-white/90 leading-relaxed">
               今日のごはんは何にしますか？<br />
-              みんなで美味しく楽しく作りましょう🍳
+              美味しい料理やレシピを記録しましょう🍳
             </p>
           </div>
           <span className="absolute -right-3 -bottom-5 text-7xl opacity-20 select-none">
             🥘
           </span>
         </div>
+
+        {/* グループ未参加時の招待バナー（強制ではなく案内カード） */}
+        {groups.length === 0 && (
+          <Card className="p-4 bg-gradient-to-r from-pink-50/70 to-white border-pink-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-pink-100 flex items-center justify-center text-primary text-xl font-bold">
+                👥
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-gray-900">
+                  家族や友達と共有しませんか？
+                </h4>
+                <p className="text-[11px] text-gray-500">
+                  グループを作ると献立や買い物をリアルタイム共有できます。
+                </p>
+              </div>
+            </div>
+            <Link href="/group-setup" className="shrink-0">
+              <Button size="sm" variant="secondary" className="text-xs py-1.5 px-3">
+                作成・参加
+              </Button>
+            </Link>
+          </Card>
+        )}
 
         {/* クイックアクション */}
         <div className="grid grid-cols-3 gap-2.5">
@@ -194,7 +218,7 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
               <UtensilsCrossed className="w-4 h-4 text-primary" />
-              <span>グループのレシピ</span>
+              <span>{currentGroup ? `${currentGroup.name}のレシピ` : 'レシピ'}</span>
             </h3>
             <Link
               href="/recipes"
@@ -320,4 +344,3 @@ export default function HomePage() {
     </div>
   );
 }
-

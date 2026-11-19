@@ -51,12 +51,12 @@ export default function MealPlansPage() {
   const { data: mealPlans, mutate } = useSWR<any[]>(
     currentGroup
       ? `/api/meal-plans?groupId=${currentGroup.id}&year=${year}&month=${month}`
-      : null
+      : `/api/meal-plans?year=${year}&month=${month}`
   );
 
-  // グループのレシピ一覧（モーダルでの選択用）
+  // レシピ一覧（モーダルでの選択用）
   const { data: recipes } = useSWR<any[]>(
-    currentGroup ? `/api/recipes?groupId=${currentGroup.id}` : null
+    currentGroup ? `/api/recipes?groupId=${currentGroup.id}` : '/api/recipes'
   );
 
   // 前月・次月
@@ -91,7 +91,6 @@ export default function MealPlansPage() {
   // 献立追加
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentGroup) return;
     if (!recipeId && !note.trim()) {
       error('レシピを選択するか、料理名を入力してください');
       return;
@@ -103,7 +102,7 @@ export default function MealPlansPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          groupId: currentGroup.id,
+          groupId: currentGroup?.id || undefined,
           date: selectedDateStr,
           mealType: selectedMealType,
           recipeId: recipeId || undefined,
@@ -142,7 +141,11 @@ export default function MealPlansPage() {
 
   return (
     <div className="min-h-screen bg-[#fcfcfc] pb-16">
-      <Header title="献立カレンダー" showGroupSelector groupName={currentGroup?.name} />
+      <Header
+        title="献立カレンダー"
+        showGroupSelector={!!currentGroup}
+        groupName={currentGroup?.name || 'マイキッチン'}
+      />
 
       <div className="px-4 py-4 space-y-4 max-w-xl mx-auto">
         {/* 月切り替えヘッダー */}

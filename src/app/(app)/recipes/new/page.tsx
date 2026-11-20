@@ -36,7 +36,6 @@ export default function NewRecipePage() {
   const [cookTimeMin, setCookTimeMin] = useState<string>('30');
   const [servings, setServings] = useState<string>('2');
   const [difficulty, setDifficulty] = useState<'EASY' | 'NORMAL' | 'HARD'>('NORMAL');
-  const [categoryId, setCategoryId] = useState<string>('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
   const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
@@ -55,11 +54,6 @@ export default function NewRecipePage() {
   ]);
 
   const [isLoading, setIsLoading] = useState(false);
-
-  // カテゴリ一覧
-  const { data: categories } = useSWR<any[]>(
-    currentGroup ? `/api/categories?groupId=${currentGroup.id}` : '/api/categories'
-  );
 
   // タグ一覧
   const { data: tags } = useSWR<any[]>(
@@ -132,7 +126,6 @@ export default function NewRecipePage() {
         cookTimeMin: cookTimeMin ? parseInt(cookTimeMin) : undefined,
         servings: servings ? parseInt(servings) : undefined,
         difficulty,
-        categoryId: categoryId || undefined,
         tagIds: selectedTagIds,
         ingredients: validIngredients.map((ing, idx) => ({
           ...ing,
@@ -167,10 +160,10 @@ export default function NewRecipePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] pb-12">
+    <div className="min-h-screen bg-[#fcfcfc] pb-32">
       <Header title="新しいレシピ" showBack backHref="/recipes" />
 
-      <form onSubmit={handleSubmit} className="px-4 py-4 space-y-6 max-w-xl mx-auto">
+      <form onSubmit={handleSubmit} className="px-4 py-4 space-y-6 max-w-xl mx-auto pb-12">
         {/* メイン写真 */}
         <div className="space-y-1.5">
           <label className="block text-xs font-bold text-gray-700 ml-1">
@@ -247,25 +240,6 @@ export default function NewRecipePage() {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* カテゴリ選択 */}
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5 ml-1">
-              カテゴリ
-            </label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-2xl border border-pink-100/80 px-4 py-2.5 text-xs text-gray-800 bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
-            >
-              <option value="">カテゴリを選択（任意）</option>
-              {categories?.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* タグ選択（tabereco/futariba準拠のタグ選択モーダル連携） */}
@@ -454,14 +428,16 @@ export default function NewRecipePage() {
           </Card>
         )}
 
-        <Button
-          type="submit"
-          size="lg"
-          className="w-full py-4 text-base shadow-primary shadow-lg"
-          isLoading={isLoading}
-        >
-          レシピを投稿する
-        </Button>
+        <div className="pt-2">
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full py-4 text-base shadow-primary shadow-lg"
+            isLoading={isLoading}
+          >
+            レシピを投稿する
+          </Button>
+        </div>
       </form>
 
       {/* タグ選択ボトムシート */}

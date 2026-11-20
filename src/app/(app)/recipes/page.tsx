@@ -25,16 +25,10 @@ import { formatCookTime } from '@/lib/utils';
 export default function RecipesPage() {
   const { currentGroup } = useApp();
   const [keyword, setKeyword] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'group' | 'friends'>('group');
   const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
-
-  // カテゴリ一覧
-  const { data: categories } = useSWR<any[]>(
-    currentGroup ? `/api/categories?groupId=${currentGroup.id}` : '/api/categories'
-  );
 
   // タグ一覧
   const { data: tags } = useSWR<any[]>(
@@ -50,11 +44,10 @@ export default function RecipesPage() {
       params.append('groupId', currentGroup.id);
     }
     if (keyword.trim()) params.append('keyword', keyword.trim());
-    if (selectedCategory) params.append('categoryId', selectedCategory);
     if (selectedTag) params.append('tagId', selectedTag);
     if (favoriteOnly) params.append('favoriteOnly', 'true');
     return `/api/recipes?${params.toString()}`;
-  }, [currentGroup, viewMode, keyword, selectedCategory, selectedTag, favoriteOnly]);
+  }, [currentGroup, viewMode, keyword, selectedTag, favoriteOnly]);
 
   const { data: recipes, isLoading } = useSWR<any[]>(queryUrl);
 
@@ -113,43 +106,28 @@ export default function RecipesPage() {
           )}
         </div>
 
-        {/* カテゴリ横スクロール */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
+        {/* タグ・お気に入り横スクロールフィルター（tabereco準拠の一本化） */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs -mx-4 px-4">
           <button
-            onClick={() => setSelectedCategory(null)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
-              selectedCategory === null
+            onClick={() => {
+              setSelectedTag(null);
+              setFavoriteOnly(false);
+            }}
+            className={`px-3.5 py-1.5 rounded-full font-bold shrink-0 transition-all ${
+              selectedTag === null && !favoriteOnly
                 ? 'bg-primary text-white shadow-sm shadow-primary/20'
                 : 'bg-white text-gray-600 border border-pink-100 hover:bg-pink-50'
             }`}
           >
             すべて
           </button>
-          {categories?.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() =>
-                setSelectedCategory(selectedCategory === cat.id ? null : cat.id)
-              }
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
-                selectedCategory === cat.id
-                  ? 'bg-primary text-white shadow-sm shadow-primary/20'
-                  : 'bg-white text-gray-600 border border-pink-100 hover:bg-pink-50'
-              }`}
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
 
-        {/* サブフィルタ（お気に入り、タグ） */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs -mx-4 px-4">
           <button
             onClick={() => setFavoriteOnly(!favoriteOnly)}
-            className={`px-2.5 py-1.5 rounded-xl font-medium shrink-0 flex items-center gap-1 transition-all ${
+            className={`px-3 py-1.5 rounded-full font-medium shrink-0 flex items-center gap-1 transition-all ${
               favoriteOnly
-                ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                : 'bg-white text-gray-500 border border-gray-100'
+                ? 'bg-rose-50 text-rose-600 border border-rose-200 font-bold shadow-2xs'
+                : 'bg-white text-gray-500 border border-gray-100 hover:bg-pink-50/50'
             }`}
           >
             <Heart
@@ -164,10 +142,10 @@ export default function RecipesPage() {
             <button
               key={t.id}
               onClick={() => setSelectedTag(selectedTag === t.id ? null : t.id)}
-              className={`px-2.5 py-1.5 rounded-xl font-medium shrink-0 transition-all ${
+              className={`px-3 py-1.5 rounded-full font-medium shrink-0 transition-all ${
                 selectedTag === t.id
-                  ? 'bg-pink-100 text-primary border border-pink-300 font-bold shadow-2xs'
-                  : 'bg-white text-gray-500 border border-gray-100'
+                  ? 'bg-primary text-white font-bold shadow-sm shadow-primary/20'
+                  : 'bg-white text-gray-600 border border-pink-100 hover:bg-pink-50'
               }`}
             >
               #{t.name}
@@ -177,7 +155,7 @@ export default function RecipesPage() {
           <button
             type="button"
             onClick={() => setIsTagSelectorOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl font-medium shrink-0 flex items-center gap-1 bg-white text-primary border border-pink-200 hover:bg-pink-50"
+            className="px-3 py-1.5 rounded-full font-bold shrink-0 flex items-center gap-1 bg-pink-50 text-primary border border-pink-200 hover:bg-pink-100 transition-colors"
           >
             <TagIcon className="w-3.5 h-3.5" />
             <span>タグで探す</span>
@@ -259,10 +237,10 @@ export default function RecipesPage() {
         )}
       </div>
 
-      {/* フローティング作成ボタン (FAB) */}
+      {/* フローティング作成ボタン (FAB: tabereco準拠でタブバーの上に配置) */}
       <Link
         href="/recipes/new"
-        className="fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-pink-400 text-white flex items-center justify-center shadow-lg shadow-primary/30 transition-transform duration-200 hover:scale-105 active:scale-95"
+        className="fixed right-5 bottom-[calc(5.2rem+env(safe-area-inset-bottom))] z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-pink-400 text-white flex items-center justify-center shadow-xl shadow-primary/35 transition-transform duration-200 hover:scale-105 active:scale-95"
         aria-label="レシピを作成"
       >
         <Plus className="w-7 h-7 stroke-[2.5]" />

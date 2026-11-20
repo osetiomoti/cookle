@@ -4,11 +4,17 @@ import { withAuth, checkGroupMembership } from '@/lib/auth';
 import { z } from 'zod';
 
 const DEFAULT_TAGS = [
+  '主菜',
+  '副菜',
+  '汁物',
+  'ご飯・麺',
+  'お弁当',
+  'スイーツ',
+  'おつまみ',
   '時短',
   '節約',
   '作り置き',
   '簡単',
-  'お弁当',
   'ヘルシー',
 ];
 

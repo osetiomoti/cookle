@@ -115,28 +115,28 @@ export default function ShoppingListsPage() {
         {/* 素早い追加フォーム */}
         <Card className="p-3.5 shadow-sm">
           <form onSubmit={handleAddItem} className="space-y-2.5">
-            <div className="flex gap-2">
+            <div className="flex items-center gap-1.5 w-full">
               <input
                 type="text"
                 placeholder="買うものを入力 (例: 牛乳、卵)"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="flex-1 rounded-xl border border-pink-100 px-3 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
+                className="flex-1 min-w-0 rounded-xl border border-pink-100 px-3 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
                 required
               />
               <input
                 type="text"
-                placeholder="数 (例: 1)"
+                placeholder="数"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-20 rounded-xl border border-pink-100 px-2 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
+                className="w-14 shrink-0 min-w-0 rounded-xl border border-pink-100 px-2 py-2 text-xs text-center text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
               />
               <input
                 type="text"
                 placeholder="単位"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                className="w-16 rounded-xl border border-pink-100 px-2 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
+                className="w-14 shrink-0 min-w-0 rounded-xl border border-pink-100 px-2 py-2 text-xs text-center text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
               />
             </div>
             <Button

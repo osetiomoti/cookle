@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { TagSelector } from '@/components/TagSelector';
 import {
   Search,
   Plus,
@@ -17,6 +18,7 @@ import {
   SlidersHorizontal,
   X,
   Users,
+  Tag as TagIcon,
 } from 'lucide-react';
 import { formatCookTime } from '@/lib/utils';
 
@@ -27,6 +29,7 @@ export default function RecipesPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'group' | 'friends'>('group');
+  const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
 
   // カテゴリ一覧
   const { data: categories } = useSWR<any[]>(
@@ -111,10 +114,10 @@ export default function RecipesPage() {
         </div>
 
         {/* カテゴリ横スクロール */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
           <button
             onClick={() => setSelectedCategory(null)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
               selectedCategory === null
                 ? 'bg-primary text-white shadow-sm shadow-primary/20'
                 : 'bg-white text-gray-600 border border-pink-100 hover:bg-pink-50'
@@ -128,7 +131,7 @@ export default function RecipesPage() {
               onClick={() =>
                 setSelectedCategory(selectedCategory === cat.id ? null : cat.id)
               }
-              className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
                 selectedCategory === cat.id
                   ? 'bg-primary text-white shadow-sm shadow-primary/20'
                   : 'bg-white text-gray-600 border border-pink-100 hover:bg-pink-50'
@@ -140,10 +143,10 @@ export default function RecipesPage() {
         </div>
 
         {/* サブフィルタ（お気に入り、タグ） */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs -mx-4 px-4">
           <button
             onClick={() => setFavoriteOnly(!favoriteOnly)}
-            className={`px-2.5 py-1 rounded-xl font-medium shrink-0 flex items-center gap-1 transition-all ${
+            className={`px-2.5 py-1.5 rounded-xl font-medium shrink-0 flex items-center gap-1 transition-all ${
               favoriteOnly
                 ? 'bg-rose-50 text-rose-600 border border-rose-200'
                 : 'bg-white text-gray-500 border border-gray-100'
@@ -161,15 +164,24 @@ export default function RecipesPage() {
             <button
               key={t.id}
               onClick={() => setSelectedTag(selectedTag === t.id ? null : t.id)}
-              className={`px-2.5 py-1 rounded-xl font-medium shrink-0 transition-all ${
+              className={`px-2.5 py-1.5 rounded-xl font-medium shrink-0 transition-all ${
                 selectedTag === t.id
-                  ? 'bg-pink-100 text-primary border border-pink-300'
+                  ? 'bg-pink-100 text-primary border border-pink-300 font-bold shadow-2xs'
                   : 'bg-white text-gray-500 border border-gray-100'
               }`}
             >
               #{t.name}
             </button>
           ))}
+
+          <button
+            type="button"
+            onClick={() => setIsTagSelectorOpen(true)}
+            className="px-2.5 py-1.5 rounded-xl font-medium shrink-0 flex items-center gap-1 bg-white text-primary border border-pink-200 hover:bg-pink-50"
+          >
+            <TagIcon className="w-3.5 h-3.5" />
+            <span>タグで探す</span>
+          </button>
         </div>
 
         {/* レシピ一覧 */}
@@ -255,6 +267,16 @@ export default function RecipesPage() {
       >
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </Link>
+
+      {/* タグ選択ボトムシート */}
+      <TagSelector
+        isOpen={isTagSelectorOpen}
+        onClose={() => setIsTagSelectorOpen(false)}
+        selectedTagIds={selectedTag ? [selectedTag] : []}
+        onSelect={(ids) => {
+          setSelectedTag(ids.length > 0 ? ids[0] : null);
+        }}
+      />
     </div>
   );
 }

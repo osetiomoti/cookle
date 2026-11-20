@@ -9,8 +9,9 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { TagSelector, type TagItem } from '@/components/TagSelector';
 import { useToast } from '@/components/Toast';
-import { Plus, Trash2, Clock, Users, Flame, ChevronRight, Check } from 'lucide-react';
+import { Plus, Trash2, Clock, Users, Flame, ChevronRight, Check, Tag as TagIcon, X } from 'lucide-react';
 
 interface IngredientInput {
   name: string;
@@ -37,6 +38,8 @@ export default function NewRecipePage() {
   const [difficulty, setDifficulty] = useState<'EASY' | 'NORMAL' | 'HARD'>('NORMAL');
   const [categoryId, setCategoryId] = useState<string>('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
+  const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
 
   // 材料リスト
@@ -228,13 +231,13 @@ export default function NewRecipePage() {
             <label className="block text-xs font-bold text-gray-700 mb-1.5 ml-1">
               難易度
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {(['EASY', 'NORMAL', 'HARD'] as const).map((diff) => (
                 <button
                   key={diff}
                   type="button"
                   onClick={() => setDifficulty(diff)}
-                  className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                  className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center truncate ${
                     difficulty === diff
                       ? 'bg-pink-100 text-primary border-primary shadow-sm'
                       : 'bg-white text-gray-600 border-gray-100 hover:bg-pink-50/50'
@@ -265,33 +268,53 @@ export default function NewRecipePage() {
             </select>
           </div>
 
-          {/* タグ選択 */}
-          {tags && tags.length > 0 && (
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5 ml-1">
+          {/* タグ選択（tabereco/futariba準拠のタグ選択モーダル連携） */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5 ml-1">
+              <label className="block text-xs font-bold text-gray-700">
                 タグ
               </label>
-              <div className="flex flex-wrap gap-1.5">
-                {tags.map((t) => {
-                  const isSelected = selectedTagIds.includes(t.id);
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => toggleTag(t.id)}
-                      className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
-                        isSelected
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'bg-pink-50/60 text-gray-600 border border-pink-100 hover:bg-pink-100/60'
-                      }`}
-                    >
-                      #{t.name}
-                    </button>
-                  );
-                })}
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsTagSelectorOpen(true)}
+                className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"
+              >
+                <Plus className="w-3.5 h-3.5" /> タグを選択・追加
+              </button>
             </div>
-          )}
+
+            <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-2xl bg-pink-50/30 border border-pink-100/60">
+              {selectedTags.length > 0 ? (
+                selectedTags.map((t) => (
+                  <span
+                    key={t.id}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-pink-200 text-xs font-bold text-primary shadow-2xs animate-in zoom-in-95"
+                  >
+                    #{t.name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTagIds((prev) => prev.filter((id) => id !== t.id));
+                        setSelectedTags((prev) => prev.filter((item) => item.id !== t.id));
+                      }}
+                      className="text-gray-400 hover:text-red-500 ml-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsTagSelectorOpen(true)}
+                  className="text-xs text-gray-400 flex items-center gap-1 px-2 py-0.5 hover:text-primary transition-colors"
+                >
+                  <TagIcon className="w-3.5 h-3.5" />
+                  <span>タグを追加（例: #時短 #節約 #主菜）</span>
+                </button>
+              )}
+            </div>
+          </div>
         </Card>
 
         {/* 材料 */}
@@ -309,32 +332,32 @@ export default function NewRecipePage() {
 
           <div className="space-y-2">
             {ingredients.map((ing, idx) => (
-              <div key={idx} className="flex items-center gap-2">
+              <div key={idx} className="flex items-center gap-1.5 w-full">
                 <input
                   type="text"
                   placeholder={`材料 ${idx + 1}`}
                   value={ing.name}
                   onChange={(e) => updateIngredient(idx, 'name', e.target.value)}
-                  className="flex-1 rounded-xl border border-pink-100 px-3 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
+                  className="flex-1 min-w-0 rounded-xl border border-pink-100 px-3 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
                 />
                 <input
                   type="text"
-                  placeholder="分量 (例: 200)"
+                  placeholder="分量"
                   value={ing.amount}
                   onChange={(e) => updateIngredient(idx, 'amount', e.target.value)}
-                  className="w-24 rounded-xl border border-pink-100 px-2.5 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
+                  className="w-16 shrink-0 min-w-0 rounded-xl border border-pink-100 px-2 py-2 text-xs text-center text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
                 />
                 <input
                   type="text"
-                  placeholder="単位 (例: g)"
+                  placeholder="単位"
                   value={ing.unit}
                   onChange={(e) => updateIngredient(idx, 'unit', e.target.value)}
-                  className="w-16 rounded-xl border border-pink-100 px-2 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
+                  className="w-14 shrink-0 min-w-0 rounded-xl border border-pink-100 px-1.5 py-2 text-xs text-center text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary"
                 />
                 <button
                   type="button"
                   onClick={() => removeIngredient(idx)}
-                  className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                  className="p-1.5 shrink-0 text-gray-300 hover:text-red-500 transition-colors"
                   aria-label="削除"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -440,6 +463,17 @@ export default function NewRecipePage() {
           レシピを投稿する
         </Button>
       </form>
+
+      {/* タグ選択ボトムシート */}
+      <TagSelector
+        isOpen={isTagSelectorOpen}
+        onClose={() => setIsTagSelectorOpen(false)}
+        selectedTagIds={selectedTagIds}
+        onSelect={(ids, tagObjects) => {
+          setSelectedTagIds(ids);
+          setSelectedTags(tagObjects);
+        }}
+      />
     </div>
   );
 }

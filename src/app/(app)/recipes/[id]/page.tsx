@@ -295,7 +295,7 @@ export default function RecipeDetailPage({
                 >
                   <span className="font-medium text-gray-800">{ing.name}</span>
                   <span className="font-bold text-gray-900">
-                    {displayAmount} {ing.unit}
+                    {displayAmount ? `${displayAmount} ${ing.unit || ''}`.trim() : ing.unit}
                   </span>
                 </div>
               );

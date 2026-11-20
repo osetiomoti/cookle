@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const groupId = searchParams.get('groupId') || auth.groupId;
     const recipeId = searchParams.get('recipeId');
+    const isMine = searchParams.get('isMine') === 'true';
 
-    if (groupId) {
+    if (groupId && !isMine) {
       const isMember = await checkGroupMembership(auth.userId, groupId);
       if (!isMember) {
         return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
@@ -35,7 +36,9 @@ export async function GET(request: NextRequest) {
       ...(recipeId ? { recipeId } : {}),
     };
 
-    if (groupId) {
+    if (isMine) {
+      whereConditions.userId = auth.userId;
+    } else if (groupId) {
       whereConditions.groupId = groupId;
     } else {
       whereConditions.userId = auth.userId;

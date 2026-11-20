@@ -46,8 +46,9 @@ export async function GET(request: NextRequest) {
     const favoriteOnly = searchParams.get('favoriteOnly') === 'true';
     const maxCookTime = searchParams.get('maxCookTime') ? parseInt(searchParams.get('maxCookTime')!) : undefined;
     const includeFriendShared = searchParams.get('includeFriendShared') === 'true';
+    const isMine = searchParams.get('isMine') === 'true';
 
-    if (groupId) {
+    if (groupId && !isMine) {
       const isMember = await checkGroupMembership(auth.userId, groupId);
       if (!isMember) {
         return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
@@ -58,7 +59,9 @@ export async function GET(request: NextRequest) {
       deletedAt: null,
     };
 
-    if (includeFriendShared) {
+    if (isMine) {
+      whereConditions.createdBy = auth.userId;
+    } else if (includeFriendShared) {
       whereConditions.friendShares = {
         some: { sharedWith: auth.userId },
       };

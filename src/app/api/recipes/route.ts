@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
     const maxCookTime = searchParams.get('maxCookTime') ? parseInt(searchParams.get('maxCookTime')!) : undefined;
     const includeFriendShared = searchParams.get('includeFriendShared') === 'true';
     const isMine = searchParams.get('isMine') === 'true';
+    const limitParam = searchParams.get('limit') || searchParams.get('take');
+    const take = limitParam ? Math.min(100, Math.max(1, parseInt(limitParam))) : undefined;
 
     if (groupId && !isMine) {
       const isMember = await checkGroupMembership(auth.userId, groupId);
@@ -66,8 +68,10 @@ export async function GET(request: NextRequest) {
         some: { sharedWith: auth.userId },
       };
     } else if (groupId) {
+      // 仕様: グループ選択時でも、作成者本人の個人レシピ（groupId: null）および友達共有レシピを一覧に含める
       whereConditions.OR = [
         { groupId },
+        { createdBy: auth.userId, groupId: null },
         { friendShares: { some: { sharedWith: auth.userId } } },
       ];
     } else {
@@ -111,15 +115,27 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    // 一覧取得用: 手順や材料などの重いリレーションは除外し、カード表示に必要なフィールドのみ select
     const recipes = await prisma.recipe.findMany({
       where: whereConditions,
-      include: {
+      select: {
+        id: true,
+        groupId: true,
+        title: true,
+        description: true,
+        mainImageKey: true,
+        cookTimeMin: true,
+        servings: true,
+        difficulty: true,
+        categoryId: true,
         category: { select: { id: true, name: true } },
-        tags: { include: { tag: { select: { id: true, name: true } } } },
-        creator: { select: { id: true, name: true, avatarKey: true } },
+        tags: { select: { tag: { select: { id: true, name: true } } } },
+        createdBy: true,
+        creator: { select: { id: true, name: true, avatarKey: true, email: true } },
         favorites: {
           where: { userId: auth.userId },
           select: { id: true },
+          take: 1,
         },
         _count: {
           select: {
@@ -127,8 +143,10 @@ export async function GET(request: NextRequest) {
             favorites: true,
           },
         },
+        createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
+      take,
     });
 
     const formatted = recipes.map((r) => ({

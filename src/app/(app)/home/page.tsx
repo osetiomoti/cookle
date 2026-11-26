@@ -20,59 +20,26 @@ import {
   Heart,
   Tag as TagIcon,
   ChefHat,
-  MessageSquareHeart,
-  Check,
 } from 'lucide-react';
-import { formatCookTime } from '@/lib/utils';
+import { formatCookTime, getUserDisplayName } from '@/lib/utils';
 
 export default function HomePage() {
-  const { user, groups, currentGroup, isLoading } = useApp();
+  const { user, groups, currentGroup } = useApp();
 
-  // 今日の献立
-  const todayStr = new Date().toISOString().split('T')[0];
-  const mealPlansUrl = currentGroup
-    ? `/api/meal-plans?groupId=${currentGroup.id}`
-    : `/api/meal-plans`;
-  const { data: mealPlans } = useSWR<any[]>(mealPlansUrl);
-  const todayPlan = mealPlans?.find((p) => p.dateString === todayStr);
+  // ホーム集約APIでウォーターフォールを解消（1回のリクエストで全セクションのデータを並列取得）
+  const homeUrl = currentGroup?.id
+    ? `/api/home?groupId=${currentGroup.id}`
+    : '/api/home';
+  const { data: homeData, isLoading: homeLoading } = useSWR<any>(homeUrl);
 
-  // レシピ一覧（上位4件）
-  const recipesUrl = currentGroup
-    ? `/api/recipes?groupId=${currentGroup.id}`
-    : `/api/recipes`;
-  const { data: recipes } = useSWR<any[]>(recipesUrl);
+  const todayPlan = homeData?.todayPlan;
+  const recipes = homeData?.recipes as any[] | undefined;
+  const records = homeData?.records as any[] | undefined;
+  const openRequests = homeData?.openRequests as any[] | undefined;
+  const unpurchasedCount = homeData?.unpurchasedCount ?? 0;
 
-  // 料理記録一覧（上位3件）
-  const recordsUrl = currentGroup
-    ? `/api/cooking-records?groupId=${currentGroup.id}`
-    : `/api/cooking-records`;
-  const { data: records } = useSWR<any[]>(recordsUrl);
-
-  // 作ってほしいリクエスト（未完了の募集中一覧）
-  const requestsUrl = currentGroup
-    ? `/api/recipe-requests?groupId=${currentGroup.id}&status=OPEN`
-    : `/api/recipe-requests?status=OPEN`;
-  const { data: openRequests, mutate: mutateRequests } = useSWR<any[]>(requestsUrl);
-
-  // 買い物リスト未完了件数
-  const shoppingUrl = currentGroup
-    ? `/api/shopping-lists?groupId=${currentGroup.id}`
-    : `/api/shopping-lists`;
-  const { data: shoppingList } = useSWR<any>(shoppingUrl);
-  const unpurchasedCount =
-    shoppingList?.items?.filter((item: any) => !item.isPurchased)?.length || 0;
-
-  if (isLoading) {
-    return (
-      <div className="p-4 space-y-4">
-        <Skeleton className="h-14 w-full" />
-        <Skeleton className="h-36 w-full" />
-        <Skeleton className="h-28 w-full" />
-      </div>
-    );
-  }
-
-  const currentTitle = currentGroup ? currentGroup.name : 'マイキッチン';
+  const currentTitle = currentGroup?.name ? currentGroup.name : 'マイキッチン';
+  const displayName = getUserDisplayName(user);
 
   return (
     <div className="min-h-screen bg-[#fcfcfc] pb-24">
@@ -89,20 +56,21 @@ export default function HomePage() {
               {currentTitle}
             </span>
             <h2 className="text-xl font-bold tracking-tight mb-1">
-              こんにちは、{user?.name || 'ゲスト'}さん！
+              こんにちは、{displayName}さん！
             </h2>
             <p className="text-xs text-white/90 leading-relaxed">
               今日のごはんは何にしますか？<br />
               美味しい料理やレシピを記録・共有しましょう🍳
             </p>
           </div>
-          <div className="absolute -right-2 -bottom-4 opacity-25 select-none">
+          <div className="absolute -right-2 -bottom-4 opacity-25 select-none pointer-events-none">
             <Image
               src="/icon-192.png"
               alt=""
               width={80}
               height={80}
               className="rounded-2xl"
+              sizes="80px"
               aria-hidden
             />
           </div>
@@ -225,9 +193,11 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {openRequests && openRequests.length > 0 ? (
+          {homeLoading && !homeData ? (
+            <Skeleton className="h-24 w-full rounded-2xl" />
+          ) : openRequests && openRequests.length > 0 ? (
             <div className="space-y-2.5">
-              {openRequests.slice(0, 2).map((req) => (
+              {openRequests.slice(0, 2).map((req: any) => (
                 <Card
                   key={req.id}
                   className="p-3.5 border-pink-100/80 bg-white shadow-2xs space-y-2.5"
@@ -235,7 +205,7 @@ export default function HomePage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full bg-pink-100 overflow-hidden flex items-center justify-center text-xs">
-                        {req.requester.avatarUrl ? (
+                        {req.requester?.avatarUrl ? (
                           <img
                             src={req.requester.avatarUrl}
                             alt=""
@@ -246,7 +216,7 @@ export default function HomePage() {
                         )}
                       </div>
                       <span className="text-xs font-bold text-gray-800">
-                        {req.requester.name} からのお願い
+                        {getUserDisplayName(req.requester)} からのお願い
                       </span>
                     </div>
 
@@ -315,7 +285,9 @@ export default function HomePage() {
           </div>
 
           <Card className="p-4 bg-white border-pink-100">
-            {todayPlan && todayPlan.items && todayPlan.items.length > 0 ? (
+            {homeLoading && !homeData ? (
+              <Skeleton className="h-14 w-full rounded-xl" />
+            ) : todayPlan && todayPlan.items && todayPlan.items.length > 0 ? (
               <div className="space-y-2.5">
                 {todayPlan.items.map((item: any) => (
                   <div
@@ -367,7 +339,7 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
               <UtensilsCrossed className="w-4 h-4 text-primary" />
-              <span>{currentGroup ? `${currentGroup.name}のレシピ` : 'レシピ'}</span>
+              <span>{currentGroup?.name ? `${currentGroup.name}のレシピ` : 'レシピ'}</span>
             </h3>
             <Link
               href="/recipes"
@@ -377,9 +349,15 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {recipes && recipes.length > 0 ? (
+          {homeLoading && !homeData ? (
             <div className="grid grid-cols-2 gap-3">
-              {recipes.slice(0, 4).map((recipe) => (
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="aspect-[4/3] rounded-2xl" />
+              ))}
+            </div>
+          ) : recipes && recipes.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3">
+              {recipes.slice(0, 4).map((recipe: any) => (
                 <Link
                   key={recipe.id}
                   href={`/recipes/${recipe.id}`}
@@ -396,10 +374,12 @@ export default function HomePage() {
                   <Card hoverable className="p-0 overflow-hidden border-pink-100/70">
                     <div className="aspect-[4/3] bg-pink-50 relative overflow-hidden">
                       {recipe.mainImageUrl ? (
-                        <img
+                        <Image
                           src={recipe.mainImageUrl}
                           alt={recipe.title}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          fill
+                          sizes="(max-width: 640px) 50vw, 240px"
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-3xl">
@@ -425,9 +405,8 @@ export default function HomePage() {
                         ) : (
                           <span>調理時間未定</span>
                         )}
-                        <span className="flex items-center gap-0.5 text-primary">
-                          <Heart className="w-3 h-3 fill-primary" />
-                          {recipe._count?.favorites || 0}
+                        <span className="text-[9px] text-gray-400 truncate max-w-[70px]">
+                          {getUserDisplayName(recipe.creator)}
                         </span>
                       </div>
                     </div>
@@ -448,7 +427,9 @@ export default function HomePage() {
         </div>
 
         {/* 最近の料理記録 */}
-        {records && records.length > 0 && (
+        {homeLoading && !homeData ? (
+          <Skeleton className="h-20 w-full rounded-2xl" />
+        ) : records && records.length > 0 ? (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
@@ -464,7 +445,7 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2">
-              {records.slice(0, 3).map((record) => (
+              {records.slice(0, 3).map((record: any) => (
                 <Card key={record.id} className="p-3 flex items-center gap-3">
                   <div className="w-14 h-14 rounded-2xl bg-pink-50 overflow-hidden shrink-0 border border-pink-100/50">
                     {record.photos && record.photos[0]?.imageUrl ? (
@@ -472,6 +453,7 @@ export default function HomePage() {
                         src={record.photos[0].imageUrl}
                         alt={record.title}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xl">
@@ -484,7 +466,7 @@ export default function HomePage() {
                       {record.title}
                     </h4>
                     <p className="text-[10px] text-gray-400 mt-0.5">
-                      {new Date(record.cookedAt).toLocaleDateString('ja-JP')} ・ 作った人: {record.user?.name}
+                      {new Date(record.cookedAt).toLocaleDateString('ja-JP')} ・ 作った人: {getUserDisplayName(record.user)}
                     </p>
                     {record.memo && (
                       <p className="text-[11px] text-gray-600 truncate mt-1">
@@ -496,7 +478,7 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* フローティング作成ボタン（ホーム画面の投稿ボタン） */}

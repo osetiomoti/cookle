@@ -25,7 +25,7 @@ import {
   ChevronRight,
   Sparkles,
 } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDate, getUserDisplayName } from '@/lib/utils';
 
 export default function RecipeRequestsPage() {
   const { user, currentGroup } = useApp();
@@ -259,7 +259,7 @@ export default function RecipeRequestsPage() {
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-bold text-gray-900">
-                            {req.requester.name}
+                            {getUserDisplayName(req.requester)}
                           </span>
                           {isMine && (
                             <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-pink-100 text-primary">
@@ -349,7 +349,7 @@ export default function RecipeRequestsPage() {
                   <div className="pt-1 flex items-center justify-between border-t border-gray-50 text-[11px]">
                     <div className="text-gray-400">
                       {req.targetUser ? (
-                        <span>👤 {req.targetUser.name} さん宛て</span>
+                        <span>👤 {getUserDisplayName(req.targetUser)} さん宛て</span>
                       ) : req.groupId ? (
                         <span>👥 グループ全員宛て</span>
                       ) : (
@@ -393,7 +393,7 @@ export default function RecipeRequestsPage() {
                       {/* 自分が依頼した場合、作ってくれた報告への確認 */}
                       {isMine && isCooked && (
                         <span className="text-emerald-600 font-bold">
-                          🎉 {req.cookUser?.name || 'だれか'} が作ってくれました！
+                          🎉 {getUserDisplayName(req.cookUser)} が作ってくれました！
                         </span>
                       )}
 
@@ -480,7 +480,7 @@ export default function RecipeRequestsPage() {
                     <option value="">友達を選択してください</option>
                     {friends.map((f: any) => (
                       <option key={f.id} value={f.id}>
-                        {f.name}
+                        {getUserDisplayName(f)}
                       </option>
                     ))}
                   </select>

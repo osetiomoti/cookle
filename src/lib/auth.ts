@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyCognitoToken, refreshCognitoTokens } from './cognito';
 import { prisma } from './prisma';
+import { isUuid } from './utils';
 import type { AuthContext } from '@/types/api';
 
 /**
@@ -71,24 +72,59 @@ export async function withAuth(
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 
+  // id_token から email や nickname を安全に取得
+  let tokenEmail = cognitoPayload.email || '';
+  let tokenName = '';
+
+  if (idToken) {
+    try {
+      const parts = idToken.split('.');
+      if (parts.length === 3) {
+        const idPayload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+        if (idPayload.email) tokenEmail = idPayload.email;
+        if (idPayload.nickname && !isUuid(idPayload.nickname)) tokenName = idPayload.nickname;
+        else if (idPayload['cognito:username'] && !isUuid(idPayload['cognito:username'])) tokenName = idPayload['cognito:username'];
+        else if (idPayload.name && !isUuid(idPayload.name)) tokenName = idPayload.name;
+      }
+    } catch {}
+  }
+
+  const initialName = tokenName || (tokenEmail ? tokenEmail.split('@')[0] : 'ユーザー');
+
   // 3. ユーザーをDBにupsert（初回登録時に自動作成）
   let user = await prisma.user.upsert({
     where: { cognitoSub: cognitoPayload.sub },
     update: {},
     create: {
       cognitoSub: cognitoPayload.sub,
-      name: cognitoPayload.username,
-      email: cognitoPayload.email,
+      name: initialName,
+      email: tokenEmail,
     },
     include: {
       groupMembers: { select: { groupId: true }, take: 1 },
     },
   });
 
+  // 既存ユーザーでメールが未設定、または名前がUUIDの場合、自動で補正更新
+  const needsEmailUpdate = (!user.email || user.email === '') && !!tokenEmail;
+  const isNameUuid = isUuid(user.name) || user.name === user.cognitoSub;
+  if (needsEmailUpdate || (isNameUuid && initialName !== 'ユーザー')) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        ...(needsEmailUpdate ? { email: tokenEmail } : {}),
+        ...(isNameUuid && initialName !== 'ユーザー' ? { name: initialName } : {}),
+      },
+      include: {
+        groupMembers: { select: { groupId: true }, take: 1 },
+      },
+    });
+  }
+
   const authContext: AuthContext = {
     userId: user.id,
     cognitoSub: user.cognitoSub,
-    email: user.email,
+    email: user.email || tokenEmail,
     groupId: user.groupMembers[0]?.groupId ?? null,
     idToken,
   };

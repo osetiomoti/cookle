@@ -12,6 +12,7 @@ import { ImageUpload } from '@/components/ui/ImageUpload';
 import { TagSelector, type TagItem } from '@/components/TagSelector';
 import { useToast } from '@/components/Toast';
 import { Plus, Trash2, Clock, Users, Flame, ChevronRight, Check, Tag as TagIcon, X } from 'lucide-react';
+import { getUserDisplayName } from '@/lib/utils';
 
 interface IngredientInput {
   name: string;
@@ -552,7 +553,7 @@ export default function NewRecipePage() {
                         : 'bg-white border-gray-100 text-gray-600 hover:bg-pink-50/40'
                     }`}
                   >
-                    <span className="truncate">{f.name}</span>
+                    <span className="truncate">{getUserDisplayName(f)}</span>
                     {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
                   </button>
                 );

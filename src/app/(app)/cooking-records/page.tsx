@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/Toast';
 import { Camera, Plus, Calendar, Trash2, BookOpen } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDate, getUserDisplayName } from '@/lib/utils';
 
 export default function CookingRecordsPage() {
   const { currentGroup } = useApp();
@@ -131,7 +131,7 @@ export default function CookingRecordsPage() {
                     </h3>
                     <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-primary" />
-                      {formatDate(record.cookedAt)} ・ 作った人: {record.user?.name}
+                      {formatDate(record.cookedAt)} ・ 作った人: {getUserDisplayName(record.user)}
                     </p>
                   </div>
 

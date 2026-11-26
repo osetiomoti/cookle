@@ -25,11 +25,40 @@ export default function ShoppingListsPage() {
     currentGroup ? `/api/shopping-lists?groupId=${currentGroup.id}` : '/api/shopping-lists'
   );
 
-  // アイテム追加
+  // アイテム追加 (楽観的更新)
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!list) return;
     if (!name.trim()) return;
+
+    const previousList = list;
+    const addedName = name.trim();
+    const addedAmount = amount.trim() || undefined;
+    const addedUnit = unit.trim() || undefined;
+
+    // 即座に入力欄をクリア
+    setName('');
+    setAmount('');
+    setUnit('');
+
+    // 一時的なアイテムを作成して即座にUIへ反映
+    const optimisticItem = {
+      id: `temp-${Date.now()}`,
+      shoppingListId: list.id,
+      name: addedName,
+      amount: addedAmount || null,
+      unit: addedUnit || null,
+      isPurchased: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    mutate(
+      {
+        ...list,
+        items: [optimisticItem, ...(list.items || [])],
+      },
+      false
+    );
 
     try {
       setIsAdding(true);
@@ -38,30 +67,35 @@ export default function ShoppingListsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shoppingListId: list.id,
-          name: name.trim(),
-          amount: amount.trim() || undefined,
-          unit: unit.trim() || undefined,
+          name: addedName,
+          amount: addedAmount,
+          unit: addedUnit,
         }),
       });
 
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || '追加に失敗しました');
 
-      setName('');
-      setAmount('');
-      setUnit('');
+      // サーバー確定データで再検証
       mutate();
     } catch (err: any) {
-      error(err.message);
+      // 失敗時はロールバック
+      mutate(previousList, false);
+      setName(addedName);
+      if (addedAmount) setAmount(addedAmount);
+      if (addedUnit) setUnit(addedUnit);
+      error(err.message || '追加に失敗しました');
     } finally {
       setIsAdding(false);
     }
   };
 
-  // 購入状態トグル
+  // 購入状態トグル (楽観的更新)
   const handleTogglePurchased = async (item: any) => {
+    if (!list) return;
+    const previousList = list;
+    const nextState = !item.isPurchased;
     try {
-      const nextState = !item.isPurchased;
       // 楽観的UI更新
       mutate(
         {
@@ -73,7 +107,7 @@ export default function ShoppingListsPage() {
         false
       );
 
-      await fetch('/api/shopping-lists/items', {
+      const res = await fetch('/api/shopping-lists/items', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -82,20 +116,34 @@ export default function ShoppingListsPage() {
         }),
       });
 
+      if (!res.ok) throw new Error('更新に失敗しました');
       mutate();
     } catch {
+      mutate(previousList, false);
       error('更新に失敗しました');
     }
   };
 
-  // アイテム削除
+  // アイテム削除 (楽観的更新)
   const handleDeleteItem = async (itemId: string) => {
+    if (!list) return;
+    const previousList = list;
     try {
-      await fetch(`/api/shopping-lists/items?itemId=${itemId}`, {
+      mutate(
+        {
+          ...list,
+          items: list.items.filter((it: any) => it.id !== itemId),
+        },
+        false
+      );
+
+      const res = await fetch(`/api/shopping-lists/items?itemId=${itemId}`, {
         method: 'DELETE',
       });
+      if (!res.ok) throw new Error('削除に失敗しました');
       mutate();
     } catch {
+      mutate(previousList, false);
       error('削除に失敗しました');
     }
   };

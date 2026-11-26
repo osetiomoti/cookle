@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { useApp } from '@/contexts/AppContext';
@@ -19,7 +20,7 @@ import {
   Tag as TagIcon,
   RotateCw,
 } from 'lucide-react';
-import { formatCookTime } from '@/lib/utils';
+import { formatCookTime, getUserDisplayName } from '@/lib/utils';
 
 function RecipesContent() {
   const { currentGroup } = useApp();
@@ -301,10 +302,12 @@ function RecipesContent() {
                 <Card hoverable className="p-0 overflow-hidden">
                   <div className="aspect-[4/3] bg-pink-50 relative overflow-hidden">
                     {recipe.mainImageUrl ? (
-                      <img
+                      <Image
                         src={recipe.mainImageUrl}
                         alt={recipe.title}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        fill
+                        sizes="(max-width: 640px) 50vw, 250px"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-3xl">
@@ -338,8 +341,8 @@ function RecipesContent() {
                       ) : (
                         <span>時間未定</span>
                       )}
-                      <span className="text-[9px] text-gray-400">
-                        {recipe.creator?.name}
+                      <span className="text-[9px] text-gray-400 truncate max-w-[80px]">
+                        {getUserDisplayName(recipe.creator)}
                       </span>
                     </div>
                   </div>

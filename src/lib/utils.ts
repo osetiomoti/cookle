@@ -44,3 +44,45 @@ export function formatDate(date: Date | string | null | undefined): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   return d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
+
+/** UUID形式判定 */
+export function isUuid(str: string | null | undefined): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
+/**
+ * ユーザーの表示名を取得
+ * 優先順位:
+ * 1. nickname
+ * 2. name (UUID形式でない場合)
+ * 3. emailの@より前
+ * 4. "ユーザー"
+ */
+export function getUserDisplayName(user: {
+  name?: string | null;
+  nickname?: string | null;
+  email?: string | null;
+} | null | undefined): string {
+  if (!user) return 'ユーザー';
+
+  // 1. nickname
+  if (user.nickname && user.nickname.trim() && !isUuid(user.nickname)) {
+    return user.nickname.trim();
+  }
+
+  // 2. name (UUID形式以外)
+  if (user.name && user.name.trim() && !isUuid(user.name)) {
+    return user.name.trim();
+  }
+
+  // 3. email の @ より前
+  if (user.email && user.email.includes('@')) {
+    const prefix = user.email.split('@')[0].trim();
+    if (prefix) return prefix;
+  }
+
+  // 4. フォールバック
+  return 'ユーザー';
+}
+

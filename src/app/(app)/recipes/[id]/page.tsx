@@ -2,6 +2,7 @@
 
 import React, { useState, use } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { Header } from '@/components/layout/Header';
@@ -27,7 +28,7 @@ import {
   ChefHat,
   Send,
 } from 'lucide-react';
-import { formatCookTime } from '@/lib/utils';
+import { formatCookTime, getUserDisplayName } from '@/lib/utils';
 
 export default function RecipeDetailPage({
   params,
@@ -100,21 +101,30 @@ export default function RecipeDetailPage({
     }
   };
 
-  // お気に入りトグル
+  // お気に入りトグル（楽観的更新: 応答を待たずにハートを即時切り替え、失敗時のみロールバック）
   const handleToggleFavorite = async () => {
     if (!recipe) return;
+    const prevRecipe = recipe;
+    const nextFavorite = !recipe.isFavorite;
+
+    // 即時反映
+    mutate({ ...recipe, isFavorite: nextFavorite }, false);
+    if (nextFavorite) {
+      success('お気に入りに追加しました！');
+    } else {
+      success('お気に入りを解除しました');
+    }
+
     try {
-      if (recipe.isFavorite) {
-        await fetch(`/api/favorites/${id}`, { method: 'DELETE' });
-        mutate({ ...recipe, isFavorite: false }, false);
-        success('お気に入りを解除しました');
-      } else {
-        await fetch(`/api/favorites/${id}`, { method: 'POST' });
-        mutate({ ...recipe, isFavorite: true }, false);
-        success('お気に入りに追加しました！');
-      }
-    } catch {
-      error('お気に入り処理に失敗しました');
+      const res = await fetch(`/api/favorites/${id}`, {
+        method: nextFavorite ? 'POST' : 'DELETE',
+      });
+      if (!res.ok) throw new Error('お気に入り処理に失敗しました');
+      mutate();
+    } catch (err: any) {
+      // 失敗時ロールバック
+      mutate(prevRecipe, false);
+      error(err.message || 'お気に入りの更新に失敗しました');
     }
   };
 
@@ -227,10 +237,13 @@ export default function RecipeDetailPage({
         {/* メイン写真 */}
         <div className="aspect-video w-full rounded-3xl bg-pink-50 overflow-hidden relative shadow-sm border border-pink-100">
           {recipe.mainImageUrl ? (
-            <img
+            <Image
               src={recipe.mainImageUrl}
               alt={recipe.title}
-              className="w-full h-full object-cover"
+              fill
+              priority
+              sizes="(max-width: 640px) 100vw, 600px"
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-5xl">
@@ -268,7 +281,7 @@ export default function RecipeDetailPage({
               🍳 {recipe.difficulty === 'EASY' ? 'かんたん' : recipe.difficulty === 'HARD' ? 'こだわり' : 'ふつう'}
             </span>
             <span className="text-[11px] text-gray-400 ml-auto">
-              投稿者: {recipe.creator?.name}
+              投稿者: {getUserDisplayName(recipe.creator)}
             </span>
           </div>
 

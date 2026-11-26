@@ -20,9 +20,9 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
           return json.data !== undefined ? json.data : json;
         },
         revalidateOnFocus: false,
-        revalidateIfStale: false,
+        revalidateIfStale: true, // キャッシュがあれば即時表示しつつ裏で再検証（stale-while-revalidate）
         revalidateOnReconnect: false,
-        dedupingInterval: 60000,
+        dedupingInterval: 10000, // 10秒間は重複フェッチを抑止しキャッシュを即時返却
         shouldRetryOnError: false,
       }}
     >
@@ -30,4 +30,3 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     </SWRConfig>
   );
 }
-

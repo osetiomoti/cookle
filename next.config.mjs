@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: false,
   images: {
-    unoptimized: true,
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -13,6 +13,12 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'cookle-media-prod.s3.ap-northeast-1.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.amazonaws.com',
         port: '',
         pathname: '/**',
       },

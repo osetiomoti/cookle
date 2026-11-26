@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import useSWR from 'swr';
 import { useApp } from '@/contexts/AppContext';
 import { Header } from '@/components/layout/Header';
@@ -19,7 +20,7 @@ import {
   Sparkles,
   Utensils,
 } from 'lucide-react';
-import { formatCookTime } from '@/lib/utils';
+import { formatCookTime, getUserDisplayName } from '@/lib/utils';
 
 export default function TagsPage() {
   const { currentGroup } = useApp();
@@ -203,10 +204,12 @@ export default function TagsPage() {
                     <Card hoverable className="p-0 overflow-hidden border-pink-100/70">
                       <div className="aspect-[4/3] bg-pink-50 relative overflow-hidden">
                         {recipe.mainImageUrl ? (
-                          <img
+                          <Image
                             src={recipe.mainImageUrl}
                             alt={recipe.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            fill
+                            sizes="(max-width: 640px) 50vw, 250px"
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-3xl">
@@ -231,7 +234,7 @@ export default function TagsPage() {
                             </span>
                           )}
                           <span className="text-[9px] text-gray-400">
-                            {recipe.creator?.name}
+                            {getUserDisplayName(recipe.creator)}
                           </span>
                         </div>
                       </div>
@@ -319,10 +322,12 @@ export default function TagsPage() {
                               >
                                 <div className="aspect-[4/3] bg-pink-50 relative overflow-hidden">
                                   {recipe.mainImageUrl ? (
-                                    <img
+                                    <Image
                                       src={recipe.mainImageUrl}
                                       alt={recipe.title}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      fill
+                                      sizes="160px"
+                                      className="object-cover group-hover:scale-105 transition-transform duration-300"
                                     />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center text-2xl">
@@ -343,7 +348,7 @@ export default function TagsPage() {
                                     {recipe.cookTimeMin && (
                                       <span>{formatCookTime(recipe.cookTimeMin)}</span>
                                     )}
-                                    <span>{recipe.creator?.name}</span>
+                                    <span>{getUserDisplayName(recipe.creator)}</span>
                                   </div>
                                 </div>
                               </Card>

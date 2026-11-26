@@ -36,23 +36,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: user, mutate: mutateUser, isLoading: userLoading } = useSWR<UserProfile>('/api/users/me');
   const { data: groups, mutate: mutateGroups, isLoading: groupsLoading } = useSWR<GroupInfo[]>('/api/groups');
 
-  const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
+  // localStorageから保存されたグループIDを初期同期読み込みし、後続クエリのウォーターフォールを防止
+  const [currentGroupId, setCurrentGroupId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('cookle_current_group');
+      } catch {}
+    }
+    return null;
+  });
 
   useEffect(() => {
-    if (groups && groups.length > 0 && !currentGroupId) {
-      // localStorage に保存されたグループがあれば復元、なければ最初のグループ
-      const savedGroupId = localStorage.getItem('cookle_current_group');
-      const found = groups.find((g) => g.id === savedGroupId);
-      if (found) {
-        setCurrentGroupId(found.id);
-      } else {
+    if (groups && groups.length > 0) {
+      if (!currentGroupId) {
         setCurrentGroupId(groups[0].id);
         localStorage.setItem('cookle_current_group', groups[0].id);
+      } else {
+        const found = groups.find((g) => g.id === currentGroupId);
+        if (!found) {
+          setCurrentGroupId(groups[0].id);
+          localStorage.setItem('cookle_current_group', groups[0].id);
+        }
       }
     }
   }, [groups, currentGroupId]);
 
-  const currentGroup = groups?.find((g) => g.id === currentGroupId) || null;
+  const currentGroup = groups?.find((g) => g.id === currentGroupId) || (currentGroupId ? ({ id: currentGroupId, name: '', description: null, imageKey: null, inviteCode: '', myRole: 'MEMBER', memberCount: 1 } as GroupInfo) : null);
 
   const handleSetCurrentGroup = (group: GroupInfo | null) => {
     if (group) {
@@ -88,4 +97,3 @@ export function useApp() {
   }
   return context;
 }
-

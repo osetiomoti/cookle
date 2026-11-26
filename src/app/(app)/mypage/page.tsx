@@ -33,7 +33,7 @@ import {
   Tag as TagIcon,
 } from 'lucide-react';
 import { getImageUrl } from '@/lib/image';
-import { formatCookTime, formatDate } from '@/lib/utils';
+import { formatCookTime, formatDate, getUserDisplayName } from '@/lib/utils';
 
 export default function MyPage() {
   const { user, groups, currentGroup, mutateUser } = useApp();
@@ -60,10 +60,11 @@ export default function MyPage() {
   // ともだち一覧
   const { data: friends } = useSWR<any[]>('/api/friends');
 
-  const recipeCount = myRecipes?.length || 0;
-  const recordCount = myRecords?.length || 0;
-  const friendCount = friends?.length || 0;
-  const favoriteCount = favorites?.length || 0;
+  // マイページの件数は取得完了まで「-」表示にして「0」のチラつきを防止 (Requirement 8)
+  const recipeCount = recipesLoading || !myRecipes ? '-' : myRecipes.length;
+  const recordCount = recordsLoading || !myRecords ? '-' : myRecords.length;
+  const friendCount = !friends ? '-' : friends.length;
+  const favoriteCount = favoritesLoading || !favorites ? '-' : favorites.length;
 
   // ユーザーIDコピー
   const handleCopyId = () => {
@@ -117,7 +118,7 @@ export default function MyPage() {
         rightAction={
           <button
             onClick={() => {
-              setName(user?.name || '');
+              setName(getUserDisplayName(user));
               setAvatarKey(user?.avatarKey || null);
               setIsSettingsOpen(true);
             }}
@@ -151,7 +152,7 @@ export default function MyPage() {
             </div>
             <button
               onClick={() => {
-                setName(user?.name || '');
+                setName(getUserDisplayName(user));
                 setAvatarKey(user?.avatarKey || null);
                 setIsSettingsOpen(true);
               }}
@@ -213,7 +214,7 @@ export default function MyPage() {
         {/* ユーザー名＆IDコピー */}
         <div className="space-y-1">
           <h2 className="text-lg font-extrabold text-gray-900">
-            {user?.name || 'ゲスト'}
+            {getUserDisplayName(user)}
           </h2>
           {user?.id && (
             <button
@@ -339,7 +340,7 @@ export default function MyPage() {
                   : 'text-gray-500 hover:text-gray-800'
               }`}
             >
-              レシピ ({recipeCount})
+              レシピ {typeof recipeCount === 'number' ? `(${recipeCount})` : ''}
             </button>
             <button
               type="button"
@@ -350,7 +351,7 @@ export default function MyPage() {
                   : 'text-gray-500 hover:text-gray-800'
               }`}
             >
-              料理記録 ({recordCount})
+              料理記録 {typeof recordCount === 'number' ? `(${recordCount})` : ''}
             </button>
             <button
               type="button"
@@ -361,7 +362,7 @@ export default function MyPage() {
                   : 'text-gray-500 hover:text-gray-800'
               }`}
             >
-              お気に入り ({favoriteCount})
+              お気に入り {typeof favoriteCount === 'number' ? `(${favoriteCount})` : ''}
             </button>
           </div>
 
@@ -492,7 +493,7 @@ export default function MyPage() {
                     const rId = fav.id || fav.recipe?.id || fav.recipeId;
                     const rTitle = fav.title || fav.recipe?.title || 'レシピ';
                     const rImg = fav.mainImageUrl || fav.recipe?.mainImageUrl;
-                    const rCreator = fav.creator?.name || fav.recipe?.creator?.name;
+                    const rCreator = getUserDisplayName(fav.creator || fav.recipe?.creator);
 
                     return (
                       <Link

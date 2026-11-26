@@ -25,7 +25,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: user });
+    const effectiveEmail = user.email || auth.email || '';
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...user,
+        email: effectiveEmail,
+      },
+    });
   });
 }
 

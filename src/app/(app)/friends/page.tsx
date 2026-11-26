@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/Toast';
 import { UserPlus, Copy, Check, UserCheck, Trash2 } from 'lucide-react';
 import { getImageUrl } from '@/lib/image';
+import { getUserDisplayName } from '@/lib/utils';
 
 export default function FriendsPage() {
   const { user } = useApp();
@@ -162,9 +163,11 @@ export default function FriendsPage() {
                     </div>
                     <div>
                       <h4 className="text-xs font-bold text-gray-900">
-                        {p.user?.name}
+                        {getUserDisplayName(p.user)}
                       </h4>
-                      <p className="text-[10px] text-gray-400">{p.user?.email}</p>
+                      {p.user?.email && (
+                        <p className="text-[10px] text-gray-400">{p.user.email}</p>
+                      )}
                     </div>
                   </div>
 
@@ -215,8 +218,8 @@ export default function FriendsPage() {
                         )}
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-gray-900">{f.name}</h4>
-                        <p className="text-[10px] text-gray-400">{f.email}</p>
+                        <h4 className="text-xs font-bold text-gray-900">{getUserDisplayName(f)}</h4>
+                        {f.email && <p className="text-[10px] text-gray-400">{f.email}</p>}
                       </div>
                     </div>
 

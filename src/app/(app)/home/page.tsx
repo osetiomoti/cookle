@@ -334,6 +334,59 @@ export default function HomePage() {
           </Card>
         </div>
 
+        {/* まずこれを作ってみよう（サンプルレシピ3件） */}
+        {homeData?.sampleRecipes && homeData.sampleRecipes.length > 0 && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <span className="text-base">🍳</span>
+                <span>まずこれを作ってみよう</span>
+                <span className="text-[10px] font-bold text-primary bg-pink-100 px-2 py-0.5 rounded-full">
+                  おすすめ
+                </span>
+              </h3>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
+              {homeData.sampleRecipes.map((sample: any) => (
+                <Link
+                  key={sample.id}
+                  href={`/recipes/${sample.id}`}
+                  className="w-48 shrink-0 block group"
+                >
+                  <Card hoverable className="p-0 overflow-hidden border-pink-100/70 h-full flex flex-col justify-between">
+                    <div>
+                      <div className="aspect-[16/10] bg-gradient-to-br from-pink-50 via-orange-50/40 to-pink-100/60 relative overflow-hidden flex items-center justify-center">
+                        <span className="text-3xl filter drop-shadow-sm group-hover:scale-110 transition-transform">
+                          {sample.title.includes('オムライス') ? '🍳' : sample.title.includes('炒め') ? '🥓' : '🍲'}
+                        </span>
+                        {sample.cookTimeMin && (
+                          <span className="absolute bottom-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/90 text-gray-700 shadow-2xs flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5 text-primary" />
+                            {sample.cookTimeMin}分
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-2.5">
+                        <h4 className="text-xs font-bold text-gray-900 line-clamp-1 mb-1 group-hover:text-primary transition-colors">
+                          {sample.title}
+                        </h4>
+                        <p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed">
+                          {sample.description}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-2.5 pt-0 flex items-center justify-between text-[10px] text-primary font-bold">
+                      <span>作り方を見る</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 最近のレシピ */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">

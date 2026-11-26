@@ -4,7 +4,7 @@ import React, { useState, use } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import useSWR from 'swr';
+import useSWR, { mutate as globalMutate } from 'swr';
 import { Header } from '@/components/layout/Header';
 import { useApp } from '@/contexts/AppContext';
 import { Card } from '@/components/ui/Card';
@@ -27,6 +27,10 @@ import {
   Sparkles,
   ChefHat,
   Send,
+  CalendarPlus,
+  ShoppingBag,
+  Lightbulb,
+  Snowflake,
 } from 'lucide-react';
 import { formatCookTime, getUserDisplayName } from '@/lib/utils';
 
@@ -184,6 +188,100 @@ export default function RecipeDetailPage({
     }
   };
 
+  // 献立追加
+  const [isMealPlanModalOpen, setIsMealPlanModalOpen] = useState(false);
+  const [planDate, setPlanDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [planMealType, setPlanMealType] = useState<'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK'>('DINNER');
+  const [planNote, setPlanNote] = useState('');
+  const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
+
+  const handleAddToMealPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recipe) return;
+    try {
+      setIsSubmittingPlan(true);
+      const res = await fetch('/api/meal-plans/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: recipe.groupId || currentGroup?.id,
+          date: planDate,
+          mealType: planMealType,
+          recipeId: recipe.id,
+          note: planNote.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || '献立の追加に失敗しました');
+
+      const mealLabel =
+        planMealType === 'BREAKFAST'
+          ? '朝食'
+          : planMealType === 'LUNCH'
+          ? '昼食'
+          : planMealType === 'DINNER'
+          ? '夕食'
+          : '間食';
+      success(`${planDate}の${mealLabel}に「${recipe.title}」を追加しました！📅`);
+      setIsMealPlanModalOpen(false);
+      globalMutate('/api/home');
+      globalMutate('/api/meal-plans');
+    } catch (err: any) {
+      error(err.message);
+    } finally {
+      setIsSubmittingPlan(false);
+    }
+  };
+
+  // 材料を買い物リストに追加（選択人数分でスケール計算）
+  const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
+  const handleAddToShoppingList = async () => {
+    if (!recipe || !recipe.ingredients || recipe.ingredients.length === 0) {
+      error('追加する材料がありません');
+      return;
+    }
+
+    try {
+      setIsAddingToShoppingList(true);
+      const itemsToAdd = recipe.ingredients.map((ing: any) => {
+        let calculatedAmount = ing.amount;
+        if (ing.amount && !isNaN(parseFloat(ing.amount))) {
+          const val = parseFloat(ing.amount) * servingRatio;
+          calculatedAmount = Number.isInteger(val) ? val.toString() : val.toFixed(1);
+        }
+        return {
+          name: ing.name,
+          amount: calculatedAmount || null,
+          unit: ing.unit || null,
+          memo: `${recipe.title} (${activeServings}人分)`,
+        };
+      });
+
+      const res = await fetch('/api/shopping-lists/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: recipe.groupId || currentGroup?.id,
+          items: itemsToAdd,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || '買い物リストへの追加に失敗しました');
+
+      success(`${activeServings}人分の材料（${itemsToAdd.length}品）を買い物リストに追加しました！🛒`);
+      globalMutate('/api/home');
+      globalMutate('/api/shopping-lists');
+      if (currentGroup?.id) {
+        globalMutate(`/api/shopping-lists?groupId=${currentGroup.id}`);
+      }
+    } catch (err: any) {
+      error(err.message);
+    } finally {
+      setIsAddingToShoppingList(false);
+    }
+  };
+
   if (isLoading || !recipe) {
     return (
       <div className="min-h-screen bg-[#fcfcfc]">
@@ -299,28 +397,37 @@ export default function RecipeDetailPage({
           )}
         </div>
 
-        {/* アクションボタン（リクエスト / 料理記録） */}
-        <div className="grid grid-cols-2 gap-2.5">
+        {/* アクションボタン */}
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => setIsMealPlanModalOpen(true)}
+            className="py-2.5 px-2 rounded-2xl flex flex-col items-center justify-center gap-1 bg-white border border-pink-200/80 text-gray-700 font-bold text-[11px] shadow-2xs hover:bg-pink-50/50 active:scale-98 transition-all"
+          >
+            <CalendarPlus className="w-4 h-4 text-primary" />
+            <span>献立に追加</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsRequestModalOpen(true)}
-            className="py-3 px-3 rounded-2xl flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 via-primary to-rose-400 text-white font-bold text-xs shadow-md shadow-primary/25 hover:scale-[1.01] active:scale-98 transition-all"
+            className="py-2.5 px-2 rounded-2xl flex flex-col items-center justify-center gap-1 bg-gradient-to-r from-pink-500 via-primary to-rose-400 text-white font-bold text-[11px] shadow-sm shadow-primary/25 hover:scale-[1.01] active:scale-98 transition-all"
           >
             <ChefHat className="w-4 h-4 stroke-[2.2]" />
             <span>これ作って！</span>
           </button>
 
-          <Button
+          <button
+            type="button"
             onClick={() => {
               setRecordTitle(`${recipe.title}を作りました！`);
               setIsRecordModalOpen(true);
             }}
-            className="py-3 flex items-center justify-center gap-1.5 shadow-2xs text-xs font-bold"
-            variant="secondary"
+            className="py-2.5 px-2 rounded-2xl flex flex-col items-center justify-center gap-1 bg-white border border-pink-200/80 text-gray-700 font-bold text-[11px] shadow-2xs hover:bg-pink-50/50 active:scale-98 transition-all"
           >
             <Camera className="w-4 h-4 text-primary" />
-            <span>作ったよ！記録</span>
-          </Button>
+            <span>作ったよ！</span>
+          </button>
         </div>
 
         {/* 材料セクション（人数変更による自動計算付き） */}
@@ -371,6 +478,20 @@ export default function RecipeDetailPage({
                 </div>
               );
             })}
+          </div>
+
+          {/* 材料を買い物リストに追加ボタン */}
+          <div className="pt-2 border-t border-gray-100">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleAddToShoppingList}
+              isLoading={isAddingToShoppingList}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold border-pink-200 text-primary hover:bg-pink-50/60 shadow-2xs"
+            >
+              <ShoppingBag className="w-4 h-4 text-primary" />
+              <span>{activeServings}人分の材料を買い物リストに追加</span>
+            </Button>
           </div>
         </Card>
 
@@ -428,6 +549,32 @@ export default function RecipeDetailPage({
             })}
           </div>
         </Card>
+
+        {/* 調理のコツ・ポイント（任意） */}
+        {recipe.tips && (
+          <Card className="p-4 bg-amber-50/40 border-amber-200/70 space-y-2">
+            <h3 className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              <span>調理のコツ・ポイント</span>
+            </h3>
+            <p className="text-xs text-amber-950/85 leading-relaxed whitespace-pre-wrap pl-5">
+              {recipe.tips}
+            </p>
+          </Card>
+        )}
+
+        {/* 保存方法・日持ち（任意） */}
+        {recipe.storageInfo && (
+          <Card className="p-4 bg-sky-50/40 border-sky-200/70 space-y-2">
+            <h3 className="text-xs font-bold text-sky-900 flex items-center gap-1.5">
+              <Snowflake className="w-4 h-4 text-sky-500" />
+              <span>保存方法・日持ち</span>
+            </h3>
+            <p className="text-xs text-sky-950/85 leading-relaxed whitespace-pre-wrap pl-5">
+              {recipe.storageInfo}
+            </p>
+          </Card>
+        )}
       </div>
 
       {/* 料理記録作成モーダル */}
@@ -555,7 +702,7 @@ export default function RecipeDetailPage({
                     <option value="">友達を選択してください</option>
                     {friends.map((f: any) => (
                       <option key={f.id} value={f.id}>
-                        {f.name}
+                        {getUserDisplayName(f)}
                       </option>
                     ))}
                   </select>
@@ -588,6 +735,66 @@ export default function RecipeDetailPage({
             isLoading={isSubmittingRequest}
           >
             作ってほしいリクエストを送る 💌
+          </Button>
+        </form>
+      </Modal>
+
+      {/* 献立カレンダー追加モーダル */}
+      <Modal
+        isOpen={isMealPlanModalOpen}
+        onClose={() => setIsMealPlanModalOpen(false)}
+        title="献立カレンダーに追加"
+      >
+        <form onSubmit={handleAddToMealPlan} className="space-y-4">
+          <Input
+            label="日付"
+            type="date"
+            value={planDate}
+            onChange={(e) => setPlanDate(e.target.value)}
+            required
+          />
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-gray-700 ml-1">
+              食事のタイミング
+            </label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { type: 'BREAKFAST', label: '朝食' },
+                { type: 'LUNCH', label: '昼食' },
+                { type: 'DINNER', label: '夕食' },
+                { type: 'SNACK', label: '間食' },
+              ].map((t) => (
+                <button
+                  key={t.type}
+                  type="button"
+                  onClick={() => setPlanMealType(t.type as any)}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all text-center ${
+                    planMealType === t.type
+                      ? 'bg-primary text-white border-primary shadow-2xs'
+                      : 'bg-white text-gray-700 border-pink-100 hover:bg-pink-50'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Input
+            label="メモ（任意）"
+            placeholder="例: 副菜にサラダを添える"
+            value={planNote}
+            onChange={(e) => setPlanNote(e.target.value)}
+          />
+
+          <Button
+            type="submit"
+            className="w-full py-3"
+            size="lg"
+            isLoading={isSubmittingPlan}
+          >
+            献立に追加する 📅
           </Button>
         </form>
       </Modal>

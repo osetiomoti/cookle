@@ -13,6 +13,8 @@ const UpdateRecipeSchema = z.object({
   servings: z.number().int().positive().optional().nullable(),
   difficulty: z.enum(['EASY', 'NORMAL', 'HARD']).optional().nullable(),
   categoryId: z.string().uuid().optional().nullable(),
+  tips: z.string().optional().nullable(),
+  storageInfo: z.string().optional().nullable(),
   tagIds: z.array(z.string().uuid()).optional(),
   ingredients: z.array(
     z.object({
@@ -134,6 +136,8 @@ export async function PUT(
       servings,
       difficulty,
       categoryId,
+      tips,
+      storageInfo,
       tagIds,
       ingredients,
       steps,
@@ -204,6 +208,8 @@ export async function PUT(
           ...(servings !== undefined ? { servings } : {}),
           ...(difficulty !== undefined ? { difficulty } : {}),
           ...(categoryId !== undefined ? { categoryId } : {}),
+          ...(tips !== undefined ? { tips } : {}),
+          ...(storageInfo !== undefined ? { storageInfo } : {}),
         },
         include: {
           category: true,

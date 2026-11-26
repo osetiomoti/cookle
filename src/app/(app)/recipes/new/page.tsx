@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { TagSelector, type TagItem } from '@/components/TagSelector';
 import { useToast } from '@/components/Toast';
-import { Plus, Trash2, Clock, Users, Flame, ChevronRight, Check, Tag as TagIcon, X } from 'lucide-react';
+import { Plus, Trash2, Clock, Users, Flame, ChevronRight, Check, Tag as TagIcon, X, Sparkles } from 'lucide-react';
 import { getUserDisplayName } from '@/lib/utils';
 
 interface IngredientInput {
@@ -47,6 +47,63 @@ const ESTIMATED_AMOUNTS = [
   'お好みで',
 ];
 
+/**
+ * 材料名から一般的な単位を自動推定する
+ */
+function inferIngredientUnit(name: string): string {
+  const n = name.trim().toLowerCase();
+  if (!n) return 'g';
+  // 個: 卵、玉ねぎ、トマト、じゃがいも、ピーマン、にんじん、レモン、りんご等
+  if (/卵|たまご|タマゴ|エッグ|玉ねぎ|玉葱|タマネギ|トマト|じゃがいも|ジャガイモ|アボカド|ピーマン|にんじん|人参|ニンジン|レモン|りんご|リンゴ|みかん|キウイ|なす|茄子|ズッキーニ|かぼちゃ/.test(n)) {
+    return '個';
+  }
+  // 本: きゅうり、大根、長ねぎ、ごぼう、バナナ、アスパラ、ソーセージ
+  if (/きゅうり|キュウリ|胡瓜|大根|ダイコン|長ねぎ|長ネギ|白ねぎ|ごぼう|ゴボウ|バナナ|アスパラ|ソーセージ|ウインナー/.test(n)) {
+    return '本';
+  }
+  // ml: 水、湯、牛乳、豆乳、生クリーム、酒、みりん、だし、スープ、油
+  if (/水|湯|お湯|牛乳|ミルク|豆乳|生クリーム|料理酒|清酒|白ワイン|赤ワイン|だし汁|出汁|スープ|めんつゆ|麺つゆ|つゆ/.test(n)) {
+    return 'ml';
+  }
+  // 大さじ: 調味料
+  if (/しょうゆ|醤油|みりん|味醂|みそ|味噌|ケチャップ|マヨネーズ|ソース|砂糖|さとう|塩|しお|こしょう|胡椒|顆粒|コンソメ|ほんだし|鶏がら|片栗粉|小麦粉|薄力粉|強力粉|パン粉|ごま油|オリーブオイル|サラダ油|ごま|胡麻/.test(n)) {
+    return '大さじ';
+  }
+  // 丁: 豆腐
+  if (/豆腐|とうふ|トウフ|厚揚げ|油揚げ/.test(n)) {
+    return '丁';
+  }
+  // 枚: ハム、ベーコン、チーズ、海苔、餃子の皮
+  if (/ハム|ベーコン|チーズ|海苔|のり|餃子の皮|春巻きの皮|ライスペーパー/.test(n)) {
+    return '枚';
+  }
+  // 束: ほうれん草、小松菜、ニラ、そうめん、パスタ
+  if (/ほうれん草|ホウレンソウ|小松菜|コマツナ|にら|ニラ|水菜|春菊|チンゲン菜|ブロッコリー|かいわれ|そうめん|うどん|そば|パスタ|スパゲッティ/.test(n)) {
+    return '束';
+  }
+  // 片: にんにく、生姜
+  if (/にんにく|ニンニク|ガーリック|生姜|しょうが|ショウガ/.test(n)) {
+    return '片';
+  }
+  // 切れ: 魚切り身
+  if (/鮭|サケ|サーモン|たら|タラ|鰤|ブリ|まぐろ|鯛|さば|サバ|切り身/.test(n)) {
+    return '切れ';
+  }
+  // パック: もやし、きのこ、納豆
+  if (/もやし|モヤシ|しめじ|シメジ|えのき|エノキ|まいたけ|マイタケ|エリンギ|マッシュルーム|納豆/.test(n)) {
+    return 'パック';
+  }
+  // 缶: ツナ、トマト缶、コーン
+  if (/ツナ|シーチキン|トマト缶|コーン缶|鯖缶/.test(n)) {
+    return '缶';
+  }
+  // 合: 米
+  if (/米|お米|白米|玄米|もち米/.test(n)) {
+    return '合';
+  }
+  return 'g';
+}
+
 interface StepInput {
   stepNumber: number;
   description: string;
@@ -60,6 +117,8 @@ export default function NewRecipePage() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [tips, setTips] = useState('');
+  const [storageInfo, setStorageInfo] = useState('');
   const [mainImageKey, setMainImageKey] = useState<string | null>(null);
   const [cookTimeMin, setCookTimeMin] = useState<string>('30');
   const [servings, setServings] = useState<string>('2');
@@ -98,6 +157,13 @@ export default function NewRecipePage() {
   const updateIngredient = (index: number, field: 'name' | 'amount' | 'unit', val: string) => {
     const next = [...ingredients];
     next[index][field] = val;
+    // 材料名入力時、まだ手動で単位が選択されていない場合は妥当な単位を自動推定
+    if (field === 'name' && !next[index].isCustomUnit) {
+      next[index].unit = inferIngredientUnit(val);
+    }
+    if (field === 'unit') {
+      next[index].isCustomUnit = true;
+    }
     setIngredients(next);
   };
   const removeIngredient = (index: number) => {
@@ -150,6 +216,8 @@ export default function NewRecipePage() {
         groupId: currentGroup?.id || undefined,
         title: title.trim(),
         description: description.trim() || undefined,
+        tips: tips.trim() || undefined,
+        storageInfo: storageInfo.trim() || undefined,
         mainImageKey: mainImageKey || undefined,
         cookTimeMin: cookTimeMin ? parseInt(cookTimeMin) : undefined,
         servings: servings ? parseInt(servings) : undefined,
@@ -195,7 +263,7 @@ export default function NewRecipePage() {
         {/* メイン写真 */}
         <div className="space-y-1.5">
           <label className="block text-xs font-bold text-gray-700 ml-1">
-            料理の完成写真
+            料理の完成写真 <span className="text-[10px] text-gray-400 font-normal">（任意）</span>
           </label>
           <ImageUpload
             value={mainImageKey}
@@ -207,17 +275,23 @@ export default function NewRecipePage() {
 
         {/* 基本情報 */}
         <Card className="p-4 space-y-4">
-          <Input
-            label="レシピ名"
-            placeholder="例: 肉じゃが、ふわとろオムライス"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 ml-1">
+              レシピ名 <span className="text-rose-500 font-extrabold text-[11px]">* 必須</span>
+            </label>
+            <input
+              type="text"
+              placeholder="例: 肉じゃが、ふわとろオムライス"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-2xl border border-pink-100 p-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary shadow-2xs"
+              required
+            />
+          </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5 ml-1">
-              紹介文・ひとことメモ
+              紹介文・ひとことメモ <span className="text-[10px] text-gray-400 font-normal">（任意）</span>
             </label>
             <textarea
               placeholder="このレシピの魅力や美味しく作るポイントなど..."
@@ -322,7 +396,10 @@ export default function NewRecipePage() {
         {/* 材料 */}
         <Card className="p-4 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">材料（{servings || 2}人分）</h3>
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <span>材料（{servings || 2}人分）</span>
+              <span className="text-rose-500 font-extrabold text-[11px]">* 必須</span>
+            </h3>
             <button
               type="button"
               onClick={addIngredient}
@@ -478,7 +555,10 @@ export default function NewRecipePage() {
         {/* 作り方手順 */}
         <Card className="p-4 space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">作り方手順</h3>
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <span>作り方手順</span>
+              <span className="text-rose-500 font-extrabold text-[11px]">* 必須</span>
+            </h3>
             <button
               type="button"
               onClick={addStep}
@@ -526,6 +606,46 @@ export default function NewRecipePage() {
                 </div>
               </div>
             ))}
+          </div>
+        </Card>
+
+        {/* 調理のコツ・保存方法（任意） */}
+        <Card className="p-4 space-y-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span>調理のコツ・保存方法</span>
+              <span className="text-[10px] text-gray-400 font-medium">（任意）</span>
+            </h3>
+            <p className="text-[11px] text-gray-400">
+              美味しく作る秘訣や、残ったときの保存目安を残しておくと便利です。
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-gray-700 ml-1 flex items-center gap-1">
+              <span>💡 調理のコツ・ポイント</span>
+            </label>
+            <textarea
+              placeholder="例: 強火でさっと炒めるとシャキシャキに仕上がります！お肉は事前に常温に戻しておくのがポイントです。"
+              rows={2}
+              value={tips}
+              onChange={(e) => setTips(e.target.value)}
+              className="w-full rounded-2xl border border-pink-100/80 p-3 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-gray-700 ml-1 flex items-center gap-1">
+              <span>🧊 保存方法・日持ち目安</span>
+            </label>
+            <textarea
+              placeholder="例: 冷蔵保存で2〜3日、冷凍で約2週間。清潔な密閉容器に入れて粗熱を取ってから保存してください。"
+              rows={2}
+              value={storageInfo}
+              onChange={(e) => setStorageInfo(e.target.value)}
+              className="w-full rounded-2xl border border-pink-100/80 p-3 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none"
+            />
           </div>
         </Card>
 

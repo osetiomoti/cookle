@@ -91,20 +91,31 @@ export function ImageUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={isUploading}
-          className={`w-full ${aspectClass} rounded-2xl border-2 border-dashed border-pink-200 bg-pink-50/50 hover:bg-pink-50 flex flex-col items-center justify-center p-4 transition-colors cursor-pointer group disabled:cursor-not-allowed`}
+          className={`w-full ${aspectClass} rounded-3xl border-2 border-dashed border-pink-200/90 bg-gradient-to-br from-pink-50/80 via-orange-50/40 to-pink-100/60 hover:from-pink-100/60 hover:to-orange-100/50 flex flex-col items-center justify-center p-4 transition-all cursor-pointer group disabled:cursor-not-allowed shadow-2xs hover:shadow-sm`}
         >
           {isUploading ? (
             <div className="flex flex-col items-center gap-2 text-primary">
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span className="text-xs font-medium">圧縮・アップロード中...</span>
+              <Loader2 className="w-7 h-7 animate-spin" />
+              <span className="text-xs font-bold">圧縮・アップロード中...</span>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-primary transition-colors">
-              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
-                <Camera className="w-5 h-5 text-primary" />
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                  🍳
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shadow-xs">
+                  <Camera className="w-3.5 h-3.5" />
+                </div>
               </div>
-              <span className="text-xs font-bold text-gray-600">写真を追加</span>
-              <span className="text-[10px] text-gray-400">料理写真を映えさせよう</span>
+              <div className="space-y-0.5">
+                <span className="block text-xs font-extrabold text-gray-800 group-hover:text-primary transition-colors">
+                  完成した料理の写真をのせよう📸
+                </span>
+                <span className="block text-[10px] text-gray-500 font-medium leading-relaxed">
+                  美味しそうな写真を追加すると食欲をそそります✨（タップして選択）
+                </span>
+              </div>
             </div>
           )}
         </button>

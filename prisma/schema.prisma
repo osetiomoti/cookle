@@ -175,6 +175,8 @@ model Recipe {
   servings     Int?
   difficulty   Difficulty?
   categoryId   String?      @map("category_id") @db.Uuid
+  tips         String?      @map("tips")
+  storageInfo  String?      @map("storage_info")
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   deletedAt    DateTime?    @map("deleted_at")

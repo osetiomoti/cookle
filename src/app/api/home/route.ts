@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth, checkGroupMembership } from '@/lib/auth';
 import { getImageUrl } from '@/lib/image';
+import { ensureSampleRecipes } from '@/lib/sampleRecipes';
 
 /**
  * GET /api/home
@@ -23,8 +24,11 @@ export async function GET(request: NextRequest) {
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
 
+    // 新規ユーザーの場合は初期サンプルレシピ3品を用意
+    await ensureSampleRecipes(auth.userId);
+
     // 並列実行でDBクエリのウォーターフォールを解消
-    const [todayPlan, recipes, records, openRequests, unpurchasedCount] = await Promise.all([
+    const [todayPlan, recipes, records, openRequests, unpurchasedCount, sampleRecipes] = await Promise.all([
       // 1. 今日の献立
       prisma.mealPlan.findFirst({
         where: {
@@ -128,6 +132,28 @@ export async function GET(request: NextRequest) {
             : { userId: auth.userId },
         },
       }),
+
+      // 6. 「まずこれを作ってみよう」サンプルレシピ3品
+      prisma.recipe.findMany({
+        where: {
+          createdBy: auth.userId,
+          deletedAt: null,
+          title: { in: ['ふんわり卵のとろとろオムライス', '豚バラとキャベツのうま塩炒め', 'ほっこり定番肉じゃが'] },
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          mainImageKey: true,
+          cookTimeMin: true,
+          servings: true,
+          difficulty: true,
+          category: { select: { id: true, name: true } },
+          tags: { select: { tag: { select: { id: true, name: true } } } },
+        },
+        orderBy: { cookTimeMin: 'asc' },
+        take: 3,
+      }),
     ]);
 
     const formattedRecipes = recipes.map((r) => ({
@@ -159,6 +185,12 @@ export async function GET(request: NextRequest) {
       },
     }));
 
+    const formattedSampleRecipes = sampleRecipes.map((r) => ({
+      ...r,
+      mainImageUrl: getImageUrl(r.mainImageKey),
+      tags: r.tags.map((t) => t.tag),
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
@@ -167,6 +199,7 @@ export async function GET(request: NextRequest) {
         records: formattedRecords,
         openRequests: formattedRequests,
         unpurchasedCount,
+        sampleRecipes: formattedSampleRecipes,
       },
     });
   });

@@ -13,6 +13,8 @@ const CreateRecipeSchema = z.object({
   servings: z.number().int().positive().optional().nullable(),
   difficulty: z.enum(['EASY', 'NORMAL', 'HARD']).optional().nullable(),
   categoryId: z.string().uuid().optional().nullable(),
+  tips: z.string().optional().nullable(),
+  storageInfo: z.string().optional().nullable(),
   tagIds: z.array(z.string().uuid()).optional(),
   ingredients: z.array(
     z.object({
@@ -189,6 +191,8 @@ export async function POST(request: NextRequest) {
       ingredients,
       steps,
       friendUserIds,
+      tips,
+      storageInfo,
     } = parsed.data;
 
     if (groupId) {
@@ -209,6 +213,8 @@ export async function POST(request: NextRequest) {
         servings,
         difficulty: difficulty || null,
         categoryId: categoryId || null,
+        tips: tips || null,
+        storageInfo: storageInfo || null,
         ingredients: {
           create: ingredients.map((ing, idx) => ({
             name: ing.name,

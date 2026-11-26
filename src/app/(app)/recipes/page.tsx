@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { useApp } from '@/contexts/AppContext';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TagSelector } from '@/components/TagSelector';
@@ -15,27 +15,87 @@ import {
   Plus,
   Clock,
   Heart,
-  SlidersHorizontal,
   X,
-  Users,
   Tag as TagIcon,
+  RotateCw,
 } from 'lucide-react';
 import { formatCookTime } from '@/lib/utils';
 
-export default function RecipesPage() {
+function RecipesContent() {
   const { currentGroup } = useApp();
-  const [keyword, setKeyword] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [favoriteOnly, setFavoriteOnly] = useState(false);
-  const [viewMode, setViewMode] = useState<'group' | 'friends'>('group');
+  const searchParams = useSearchParams();
+  const initialTagId = searchParams.get('tagId');
+
+  // フィルター状態をsessionStorageから復元、または初期値
+  const [keyword, setKeyword] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('cookle_recipes_filter');
+        if (saved) return JSON.parse(saved).keyword || '';
+      } catch {}
+    }
+    return '';
+  });
+
+  const [selectedTag, setSelectedTag] = useState<string | null>(() => {
+    if (initialTagId) return initialTagId;
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('cookle_recipes_filter');
+        if (saved) return JSON.parse(saved).selectedTag ?? null;
+      } catch {}
+    }
+    return null;
+  });
+
+  const [favoriteOnly, setFavoriteOnly] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('cookle_recipes_filter');
+        if (saved) return !!JSON.parse(saved).favoriteOnly;
+      } catch {}
+    }
+    return false;
+  });
+
+  const [viewMode, setViewMode] = useState<'group' | 'friends'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('cookle_recipes_filter');
+        if (saved) return JSON.parse(saved).viewMode || 'group';
+      } catch {}
+    }
+    return 'group';
+  });
+
   const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
+  const scrollRestoredRef = useRef(false);
+
+  // URLパラメータでタグが指定された場合反映
+  useEffect(() => {
+    if (initialTagId) {
+      setSelectedTag(initialTagId);
+    }
+  }, [initialTagId]);
+
+  // フィルター状態をsessionStorageに保存
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(
+          'cookle_recipes_filter',
+          JSON.stringify({ keyword, selectedTag, favoriteOnly, viewMode })
+        );
+      } catch {}
+    }
+  }, [keyword, selectedTag, favoriteOnly, viewMode]);
 
   // タグ一覧
   const { data: tags } = useSWR<any[]>(
     currentGroup ? `/api/tags?groupId=${currentGroup.id}` : '/api/tags'
   );
 
-  // レシピ一覧
+  // レシピ一覧クエリ
   const queryUrl = useMemo(() => {
     const params = new URLSearchParams();
     if (viewMode === 'friends') {
@@ -49,7 +109,38 @@ export default function RecipesPage() {
     return `/api/recipes?${params.toString()}`;
   }, [currentGroup, viewMode, keyword, selectedTag, favoriteOnly]);
 
-  const { data: recipes, isLoading } = useSWR<any[]>(queryUrl);
+  const { data: recipes, isLoading, mutate, isValidating } = useSWR<any[]>(queryUrl, {
+    revalidateIfStale: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 60000,
+  });
+
+  // スクロール位置の復元
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!isLoading && recipes && recipes.length > 0 && !scrollRestoredRef.current) {
+      scrollRestoredRef.current = true;
+      const savedScroll = sessionStorage.getItem('cookle_recipes_scroll');
+      if (savedScroll) {
+        const top = parseInt(savedScroll, 10);
+        if (!isNaN(top) && top > 0) {
+          // DOM描画直後にスクロール位置を復元
+          requestAnimationFrame(() => {
+            window.scrollTo({ top, behavior: 'instant' });
+          });
+        }
+      }
+    }
+  }, [isLoading, recipes]);
+
+  // 詳細ページ遷移時に現在のスクロール位置を記録
+  const handleRecipeClick = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('cookle_recipes_scroll', window.scrollY.toString());
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#fcfcfc]">
@@ -57,6 +148,28 @@ export default function RecipesPage() {
         title="レシピ一覧"
         showGroupSelector={!!currentGroup}
         groupName={currentGroup?.name || 'マイキッチン'}
+        rightAction={
+          <div className="flex items-center gap-1">
+            <Link
+              href="/tags"
+              className="p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-pink-50"
+              title="タグ別レシピ"
+            >
+              <TagIcon className="w-5 h-5 stroke-[2]" />
+            </Link>
+            <button
+              onClick={() => mutate()}
+              disabled={isValidating}
+              className={`p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-pink-50 ${
+                isValidating ? 'animate-spin text-primary' : ''
+              }`}
+              title="再読み込み"
+              aria-label="再読み込み"
+            >
+              <RotateCw className="w-4 h-4 stroke-[2.2]" />
+            </button>
+          </div>
+        }
       />
 
       <div className="px-4 py-4 space-y-4">
@@ -152,18 +265,25 @@ export default function RecipesPage() {
             </button>
           ))}
 
+          <Link
+            href="/tags"
+            className="px-3 py-1.5 rounded-full font-bold shrink-0 flex items-center gap-1 bg-gradient-to-r from-pink-50 to-rose-50 text-primary border border-pink-200 hover:bg-pink-100 transition-colors shadow-2xs"
+          >
+            <TagIcon className="w-3.5 h-3.5" />
+            <span>タグ別で見る</span>
+          </Link>
+
           <button
             type="button"
             onClick={() => setIsTagSelectorOpen(true)}
             className="px-3 py-1.5 rounded-full font-bold shrink-0 flex items-center gap-1 bg-pink-50 text-primary border border-pink-200 hover:bg-pink-100 transition-colors"
           >
-            <TagIcon className="w-3.5 h-3.5" />
-            <span>タグで探す</span>
+            <span>タグ一覧</span>
           </button>
         </div>
 
         {/* レシピ一覧 */}
-        {isLoading ? (
+        {isLoading && !recipes ? (
           <div className="grid grid-cols-2 gap-3">
             {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="aspect-[4/3] rounded-3xl" />
@@ -175,6 +295,7 @@ export default function RecipesPage() {
               <Link
                 key={recipe.id}
                 href={`/recipes/${recipe.id}`}
+                onClick={handleRecipeClick}
                 className="block group"
               >
                 <Card hoverable className="p-0 overflow-hidden">
@@ -259,3 +380,22 @@ export default function RecipesPage() {
   );
 }
 
+export default function RecipesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#fcfcfc] p-4 space-y-4">
+          <Skeleton className="h-14 w-full rounded-2xl" />
+          <Skeleton className="h-10 w-full rounded-2xl" />
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="aspect-[4/3] rounded-3xl" />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <RecipesContent />
+    </Suspense>
+  );
+}

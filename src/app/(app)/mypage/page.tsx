@@ -29,6 +29,8 @@ import {
   ChevronRight,
   User as UserIcon,
   Pencil,
+  ChefHat,
+  Tag as TagIcon,
 } from 'lucide-react';
 import { getImageUrl } from '@/lib/image';
 import { formatCookTime, formatDate } from '@/lib/utils';
@@ -285,6 +287,43 @@ export default function MyPage() {
             <span className="text-[10px] font-bold text-gray-700 leading-tight">
               料理記録
             </span>
+          </Link>
+        </div>
+
+        {/* リクエスト＆タグ別レシピへのショートカット */}
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            href="/recipe-requests"
+            className="flex items-center gap-2.5 p-2.5 bg-pink-50/50 hover:bg-pink-100/60 border border-pink-100 rounded-2xl transition-all shadow-2xs group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-primary shadow-2xs shrink-0">
+              <ChefHat className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[11px] font-bold text-gray-800 block truncate">
+                作って！リクエスト
+              </span>
+              <span className="text-[9px] text-gray-400 block truncate">
+                おねだり・お願い
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            href="/tags"
+            className="flex items-center gap-2.5 p-2.5 bg-amber-50/40 hover:bg-amber-100/50 border border-amber-100 rounded-2xl transition-all shadow-2xs group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-amber-600 shadow-2xs shrink-0">
+              <TagIcon className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[11px] font-bold text-gray-800 block truncate">
+                タグ別レシピ
+              </span>
+              <span className="text-[9px] text-gray-400 block truncate">
+                カテゴリ・人気タグ
+              </span>
+            </div>
           </Link>
         </div>
 

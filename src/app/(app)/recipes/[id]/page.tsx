@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { Header } from '@/components/layout/Header';
+import { useApp } from '@/contexts/AppContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -23,6 +24,8 @@ import {
   Camera,
   ChevronDown,
   Sparkles,
+  ChefHat,
+  Send,
 } from 'lucide-react';
 import { formatCookTime } from '@/lib/utils';
 
@@ -52,6 +55,50 @@ export default function RecipeDetailPage({
     new Date().toISOString().split('T')[0]
   );
   const [isSubmittingRecord, setIsSubmittingRecord] = useState(false);
+
+  // 作ってほしいリクエストモーダル
+  const { currentGroup } = useApp();
+  const { data: friends } = useSWR<any[]>('/api/friends');
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestTargetType, setRequestTargetType] = useState<'group' | 'friend'>('group');
+  const [selectedFriendId, setSelectedFriendId] = useState<string>('');
+  const [requestNote, setRequestNote] = useState('');
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+
+  const handleCreateRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recipe) return;
+    if (requestTargetType === 'friend' && !selectedFriendId) {
+      error('リクエストを送るともだちを選択してください');
+      return;
+    }
+
+    try {
+      setIsSubmittingRequest(true);
+      const res = await fetch('/api/recipe-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: requestTargetType === 'group' ? currentGroup?.id : undefined,
+          targetUserId: requestTargetType === 'friend' ? selectedFriendId : undefined,
+          recipeId: recipe.id,
+          customTitle: recipe.title,
+          note: requestNote.trim() || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'リクエストに失敗しました');
+
+      success('作ってほしいリクエストを送信しました！💌');
+      setIsRequestModalOpen(false);
+      setRequestNote('');
+    } catch (err: any) {
+      error(err.message);
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
 
   // お気に入りトグル
   const handleToggleFavorite = async () => {
@@ -239,18 +286,29 @@ export default function RecipeDetailPage({
           )}
         </div>
 
-        {/* 「作ったよ！」ボタン */}
-        <Button
-          onClick={() => {
-            setRecordTitle(`${recipe.title}を作りました！`);
-            setIsRecordModalOpen(true);
-          }}
-          className="w-full py-3.5 flex items-center justify-center gap-2 shadow-sm"
-          variant="secondary"
-        >
-          <Camera className="w-4 h-4 text-primary" />
-          <span>このレシピを作った！（写真・記録を残す）</span>
-        </Button>
+        {/* アクションボタン（リクエスト / 料理記録） */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => setIsRequestModalOpen(true)}
+            className="py-3 px-3 rounded-2xl flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 via-primary to-rose-400 text-white font-bold text-xs shadow-md shadow-primary/25 hover:scale-[1.01] active:scale-98 transition-all"
+          >
+            <ChefHat className="w-4 h-4 stroke-[2.2]" />
+            <span>これ作って！</span>
+          </button>
+
+          <Button
+            onClick={() => {
+              setRecordTitle(`${recipe.title}を作りました！`);
+              setIsRecordModalOpen(true);
+            }}
+            className="py-3 flex items-center justify-center gap-1.5 shadow-2xs text-xs font-bold"
+            variant="secondary"
+          >
+            <Camera className="w-4 h-4 text-primary" />
+            <span>作ったよ！記録</span>
+          </Button>
+        </div>
 
         {/* 材料セクション（人数変更による自動計算付き） */}
         <Card className="p-4 space-y-3">
@@ -413,6 +471,110 @@ export default function RecipeDetailPage({
             isLoading={isSubmittingRecord}
           >
             記録を保存する
+          </Button>
+        </form>
+      </Modal>
+
+      {/* 作ってほしいリクエストモーダル */}
+      <Modal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        title="これ作って！リクエスト"
+      >
+        <form onSubmit={handleCreateRequest} className="space-y-4">
+          <div className="p-3 rounded-2xl bg-pink-50/60 border border-pink-100 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white overflow-hidden shrink-0 border border-pink-100 flex items-center justify-center">
+              {recipe.mainImageUrl ? (
+                <img
+                  src={recipe.mainImageUrl}
+                  alt={recipe.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xl">🍳</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold text-primary">リクエストする料理</span>
+              <h4 className="text-xs font-bold text-gray-900 truncate">{recipe.title}</h4>
+            </div>
+          </div>
+
+          {/* 宛先選択 */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-gray-700 ml-1">
+              誰にお願いする？
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setRequestTargetType('group')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center ${
+                  requestTargetType === 'group'
+                    ? 'bg-pink-100 text-primary border-primary shadow-2xs'
+                    : 'bg-white text-gray-600 border-gray-100 hover:bg-pink-50/40'
+                }`}
+              >
+                {currentGroup ? `👥 ${currentGroup.name}` : '👥 グループ全員'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRequestTargetType('friend')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center ${
+                  requestTargetType === 'friend'
+                    ? 'bg-pink-100 text-primary border-primary shadow-2xs'
+                    : 'bg-white text-gray-600 border-gray-100 hover:bg-pink-50/40'
+                }`}
+              >
+                👤 ともだちを指定
+              </button>
+            </div>
+
+            {requestTargetType === 'friend' && (
+              <div className="pt-1">
+                {friends && friends.length > 0 ? (
+                  <select
+                    value={selectedFriendId}
+                    onChange={(e) => setSelectedFriendId(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-pink-100 p-2.5 text-xs text-gray-800 bg-white focus:outline-none focus:border-primary"
+                  >
+                    <option value="">友達を選択してください</option>
+                    {friends.map((f: any) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-[11px] text-gray-400 p-2 bg-gray-50 rounded-xl">
+                    まだ友達が登録されていません。「マイページ &gt; ともだち」から友達を追加できます。
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 ml-1">
+              ひとことメッセージ（任意）
+            </label>
+            <textarea
+              placeholder="例: 今夜これが食べたい！、チーズトッピングでお願いなど..."
+              rows={2}
+              value={requestNote}
+              onChange={(e) => setRequestNote(e.target.value)}
+              className="w-full rounded-2xl border border-pink-100 p-3 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-primary resize-none"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full py-3"
+            size="lg"
+            isLoading={isSubmittingRequest}
+          >
+            作ってほしいリクエストを送る 💌
           </Button>
         </form>
       </Modal>

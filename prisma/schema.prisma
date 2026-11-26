@@ -37,6 +37,9 @@ model User {
   friendshipsAsUser   Friendship[]         @relation("FriendshipsAsUser")
   friendshipsAsFriend Friendship[]         @relation("FriendshipsAsFriend")
   pushSubscriptions   PushSubscription[]
+  recipeRequestsSent     RecipeRequest[] @relation("RequestedBy")
+  recipeRequestsReceived RecipeRequest[] @relation("RequestedTo")
+  recipeRequestsCooked   RecipeRequest[] @relation("CookedBy")
 
   @@map("users")
 }
@@ -64,6 +67,7 @@ model Group {
   tags           Tag[]
   mealPlans      MealPlan[]
   shoppingLists  ShoppingList[]
+  recipeRequests RecipeRequest[]
 
   @@map("groups")
 }
@@ -186,6 +190,7 @@ model Recipe {
   cookingRecords CookingRecord[]
   mealPlanItems  MealPlanItem[]
   friendShares   RecipeFriendShare[]
+  recipeRequests RecipeRequest[]
 
   @@index([groupId, createdAt(sort: Desc)])
   @@index([createdBy, createdAt(sort: Desc)])
@@ -439,4 +444,42 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+// =============================================
+// Recipe Request (作ってほしいリクエスト)
+// =============================================
+
+model RecipeRequest {
+  id           String              @id @default(uuid()) @db.Uuid
+  groupId      String?             @map("group_id") @db.Uuid
+  userId       String              @map("user_id") @db.Uuid
+  targetUserId String?             @map("target_user_id") @db.Uuid
+  recipeId     String?             @map("recipe_id") @db.Uuid
+  customTitle  String              @map("custom_title") @db.VarChar(100)
+  note         String?             @db.VarChar(255)
+  status       RecipeRequestStatus @default(OPEN)
+  cookedBy     String?             @map("cooked_by") @db.Uuid
+  cookedAt     DateTime?           @map("cooked_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  group      Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  requester  User    @relation("RequestedBy", fields: [userId], references: [id], onDelete: Cascade)
+  targetUser User?   @relation("RequestedTo", fields: [targetUserId], references: [id], onDelete: SetNull)
+  cookUser   User?   @relation("CookedBy", fields: [cookedBy], references: [id], onDelete: SetNull)
+  recipe     Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, status])
+  @@index([userId])
+  @@index([targetUserId])
+  @@map("recipe_requests")
+}
+
+enum RecipeRequestStatus {
+  OPEN     @map("open")
+  ACCEPTED @map("accepted")
+  COOKED   @map("cooked")
+
+  @@map("recipe_request_status")
 }

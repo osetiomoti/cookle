@@ -20,6 +20,9 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
           return json.data !== undefined ? json.data : json;
         },
         revalidateOnFocus: false,
+        revalidateIfStale: false,
+        revalidateOnReconnect: false,
+        dedupingInterval: 60000,
         shouldRetryOnError: false,
       }}
     >

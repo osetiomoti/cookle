@@ -30,6 +30,8 @@ export function Header({
   const handleBack = () => {
     if (onBack) {
       onBack();
+    } else if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
     } else if (backHref) {
       router.push(backHref);
     } else {

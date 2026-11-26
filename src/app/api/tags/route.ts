@@ -51,6 +51,11 @@ export async function GET(request: NextRequest) {
 
     let tags = await prisma.tag.findMany({
       where: whereCondition,
+      include: {
+        _count: {
+          select: { recipeTags: true },
+        },
+      },
       orderBy: { sortOrder: 'asc' },
     });
 
@@ -67,15 +72,27 @@ export async function GET(request: NextRequest) {
 
       tags = await prisma.tag.findMany({
         where: whereCondition,
+        include: {
+          _count: {
+            select: { recipeTags: true },
+          },
+        },
         orderBy: { sortOrder: 'asc' },
       });
     }
 
     // 重複するタグ名を排除してユニークにする
     const uniqueMap = new Map();
-    tags.forEach((t) => {
-      if (!uniqueMap.has(t.name)) {
-        uniqueMap.set(t.name, t);
+    tags.forEach((t: any) => {
+      const existing = uniqueMap.get(t.name);
+      if (!existing) {
+        uniqueMap.set(t.name, {
+          ...t,
+          recipeCount: t._count?.recipeTags || 0,
+        });
+      } else {
+        // カウントを合算
+        existing.recipeCount = (existing.recipeCount || 0) + (t._count?.recipeTags || 0);
       }
     });
     const uniqueTags = Array.from(uniqueMap.values());
